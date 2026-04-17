@@ -41,8 +41,8 @@ dev = [
 blindspotcheck = "blindspotcheck.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/wwkim/iec62443-multitenant-blindspot-check"
-Issues = "https://github.com/wwkim/iec62443-multitenant-blindspot-check/issues"
+Homepage = "https://github.com/whosdaniel/iec62443-multitenant-blindspot-check"
+Issues = "https://github.com/whosdaniel/iec62443-multitenant-blindspot-check/issues"
 Paper = "https://doi.org/10.5281/zenodo.19617578"
 
 [tool.setuptools.packages.find]

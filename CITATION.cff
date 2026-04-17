@@ -12,7 +12,7 @@ authors:
 version: "0.1.0"
 date-released: "2026-04-17"
 license: MIT
-repository-code: "https://github.com/wwkim/iec62443-multitenant-blindspot-check"
+repository-code: "https://github.com/whosdaniel/iec62443-multitenant-blindspot-check"
 keywords:
   - IEC 62443
   - cybersecurity

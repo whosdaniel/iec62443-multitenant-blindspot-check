@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/wwkim/iec62443-multitenant-blindspot-check/schemas/architecture-v1.json",
+  "$id": "https://github.com/whosdaniel/iec62443-multitenant-blindspot-check/schemas/architecture-v1.json",
   "title": "IEC 62443 Multi-Tenant Architecture Specification",
   "description": "Abstract multi-tenant architecture description for NC-1/NC-2/NC-3 blind-spot classification. Labels must be abstract roles (APT, ALN-A, etc.) — real operator identification is prohibited.",
   "type": "object",

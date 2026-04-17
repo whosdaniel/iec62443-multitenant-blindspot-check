@@ -21,7 +21,7 @@ Requires Python ≥ 3.10.
 ```bash
 pip install blindspotcheck
 # or from source:
-git clone https://github.com/wwkim/iec62443-multitenant-blindspot-check
+git clone https://github.com/whosdaniel/iec62443-multitenant-blindspot-check
 cd iec62443-multitenant-blindspot-check
 pip install -e ".[dev]"
 ```
@@ -133,7 +133,7 @@ See [`CITATION.cff`](CITATION.cff). BibTeX:
   year    = {2026},
   version = {0.1.0},
   doi     = {10.5281/zenodo.XXXXX},
-  url     = {https://github.com/wwkim/iec62443-multitenant-blindspot-check}
+  url     = {https://github.com/whosdaniel/iec62443-multitenant-blindspot-check}
 }
 
 @article{kim2026compliant,
