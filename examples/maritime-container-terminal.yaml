@@ -1,0 +1,115 @@
+# Maritime container terminal — derivation example (hypothetical, framework-grounded).
+#
+# Derivation source:
+#   - IACS UR E26 (2022) — Cyber resilience of ships.
+#   - IACS UR E27 (2022) — Cyber resilience of on-board systems and equipment.
+#     (Applicable to ships contracted for construction on or after 1 July 2024.)
+#   - IMO MSC-FAL.1/Circ.3 — Guidelines on maritime cyber risk management.
+#   - IEC 62443-3-2:2020 — zone/conduit framework (applied to the port-side
+#     terminal seam, which UR E26/E27 and MSC-FAL.1/Circ.3 do NOT cover).
+#
+# The key observation (Kim 2026 §8.1): UR E26/E27 cover *ship-level* and
+# *on-board* cyber resilience, and MSC-FAL.1/Circ.3 covers *ship-side* risk
+# management. None of them reaches the port-terminal fabric where a Shipping
+# Line's systems interface with the Terminal Operating System (TOS). That
+# port-side seam is exactly the multi-tenant monitoring gap the paper analyses.
+#
+# Structural pattern:
+#   - Port Authority (PortAuth) owns the port fabric (VSAT uplink, common LAN,
+#     PCS — port community system).
+#   - Terminal Operator (TermOp) runs the TOS under contract to PortAuth.
+#   - Shipping Line (ShipLine) connects its on-shore back-office to TOS over
+#     port IT for stowage plans, gate bookings, and discharge lists.
+#
+# All labels are ABSTRACT ROLES. No real port, terminal, or shipping line
+# identification.
+
+meta:
+  schema_version: "1"
+  domain: maritime
+  source:
+    standards:
+      - "IACS UR E26:2022"
+      - "IACS UR E27:2022"
+      - "IMO MSC-FAL.1/Circ.3"
+      - "IEC 62443-3-2:2020"
+    paper: "Kim 2026, Compliant Yet Blind §8.1 (cross-domain)"
+  disclaimer: >
+    Abstract structural pattern. Classifications below reproduce the gap
+    Kim 2026 §8.1 claims exists on the port-side terminal fabric (uncovered by
+    UR E26/E27 or MSC-FAL.1/Circ.3). No real port-operator identification.
+
+asset_owners:
+  - { id: PortAuth, role: AO, description: "Port Authority (owns port fabric, PCS)" }
+  - { id: TermOp,   role: AO, description: "Terminal Operator (runs TOS)" }
+  - { id: ShipLine-A, role: AO, description: "Shipping Line A (independent AO)" }
+  - { id: ShipLine-B, role: AO, description: "Shipping Line B" }
+
+sp_relations:
+  # TermOp contracts to PortAuth for TOS operation on port fabric.
+  - { sp: TermOp, ao: PortAuth, scope: [CD-TOS-ADMIN, CD-PCS-FEED] }
+
+zone_authorities:
+  - { zone: ZONE-PORT-LAN,    org: PortAuth }
+  - { zone: ZONE-PORT-PCS,    org: PortAuth }
+  - { zone: ZONE-PORT-VSAT,   org: PortAuth }
+  - { zone: ZONE-TERM-TOS,    org: TermOp }
+  - { zone: ZONE-TERM-YARD,   org: TermOp }
+  - { zone: ZONE-SHIP-A-BO,   org: ShipLine-A }
+  - { zone: ZONE-SHIP-B-BO,   org: ShipLine-B }
+
+conduits:
+  # --- Blind-spot candidates: ShipLine <-> TOS over port fabric ---
+  - id: CD-SHIP-A-STOW
+    description: "ShipLine-A stowage plan push to TOS"
+    from: { owner: ShipLine-A, zone: ZONE-SHIP-A-BO, asset: "ShipLine-A back office" }
+    to:   { owner: TermOp,     zone: ZONE-TERM-TOS,  asset: "TOS stowage module" }
+    notes: "ShipLine is not SP to TermOp; neither to PortAuth; fabric in between."
+
+  - id: CD-SHIP-B-STOW
+    description: "ShipLine-B stowage plan push to TOS"
+    from: { owner: ShipLine-B, zone: ZONE-SHIP-B-BO, asset: "ShipLine-B back office" }
+    to:   { owner: TermOp,     zone: ZONE-TERM-TOS,  asset: "TOS stowage module" }
+
+  - id: CD-SHIP-A-GATE
+    description: "ShipLine-A gate booking against terminal yard"
+    from: { owner: ShipLine-A, zone: ZONE-SHIP-A-BO, asset: "Gate booking client" }
+    to:   { owner: TermOp,     zone: ZONE-TERM-YARD, asset: "Yard planner" }
+
+  - id: CD-SHIP-B-GATE
+    description: "ShipLine-B gate booking"
+    from: { owner: ShipLine-B, zone: ZONE-SHIP-B-BO, asset: "Gate booking client" }
+    to:   { owner: TermOp,     zone: ZONE-TERM-YARD, asset: "Yard planner" }
+
+  - id: CD-PORT-SHIP-A-PCS
+    description: "ShipLine-A to Port Community System feed"
+    from: { owner: ShipLine-A, zone: ZONE-SHIP-A-BO, asset: "ShipLine-A PCS client" }
+    to:   { owner: PortAuth,   zone: ZONE-PORT-PCS,  asset: "PCS ingress" }
+    notes: "PortAuth operates PCS but has no SP-AO relationship with ShipLine."
+
+  # --- Resolved-by-SP (TermOp operates TOS under PortAuth contract) ---
+  - id: CD-TOS-ADMIN
+    description: "TermOp TOS admin plane to PortAuth oversight"
+    from: { owner: TermOp,   zone: ZONE-TERM-TOS, asset: "TOS admin" }
+    to:   { owner: PortAuth, zone: ZONE-PORT-LAN, asset: "PortAuth monitor" }
+
+  - id: CD-PCS-FEED
+    description: "TOS-to-PCS event feed"
+    from: { owner: TermOp,   zone: ZONE-TERM-TOS,  asset: "TOS events" }
+    to:   { owner: PortAuth, zone: ZONE-PORT-PCS,  asset: "PCS subscriber" }
+
+  # --- No cross-AO ---
+  - id: CD-PORT-VSAT
+    description: "PortAuth internal VSAT control plane"
+    from: { owner: PortAuth, zone: ZONE-PORT-VSAT, asset: "VSAT modem" }
+    to:   { owner: PortAuth, zone: ZONE-PORT-LAN,  asset: "Uplink router" }
+
+  - id: CD-TERM-YARD-INTRA
+    description: "TermOp yard-management internal replication"
+    from: { owner: TermOp, zone: ZONE-TERM-YARD, asset: "Yard primary" }
+    to:   { owner: TermOp, zone: ZONE-TERM-YARD, asset: "Yard replica" }
+
+  - id: CD-SHIP-A-INTRA
+    description: "ShipLine-A back office internal cluster"
+    from: { owner: ShipLine-A, zone: ZONE-SHIP-A-BO, asset: "App server 1" }
+    to:   { owner: ShipLine-A, zone: ZONE-SHIP-A-BO, asset: "App server 2" }

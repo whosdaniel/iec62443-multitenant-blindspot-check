@@ -1,0 +1,178 @@
+# Airport common-use terminal — derivation example.
+#
+# Derivation source:
+#   - IATA Recommended Practice 1797 (Common Use Passenger Processing Systems,
+#     three-role architecture: Platform Provider / Platform Operator /
+#     Application Provider).
+#   - IEC 62443-2-4 Clauses 3.1.12 (integration SP), 3.1.13 (maintenance SP),
+#     and SP.08.02 BR (SP-AO log-sharing).
+#   - IEC 62443-3-2 ZCR-1 (zone/conduit partitioning; Clauses 4.3.1-4.3.3).
+#   - ACRP Report 30 (2010) — first-generation CUPPS decomposition.
+#
+# Reproduces Table 2 of Kim (2026), "Compliant Yet Blind: Measuring and
+# Closing Multi-Tenant Monitoring Gaps in IEC 62443".
+#
+# All labels are ABSTRACT ROLES. No real operator identification.
+#
+# Expected classification:
+#   - blind-spot     : 3   (CD-08a, CD-08b, CD-06)
+#   - borderline     : 2   (CD-04, CD-05)
+#   - resolved-by-sp : 5   (CD-01, CD-02, CD-03, CD-09, CD-10)
+#   - no-cross-ao    : 7   (CD-07, CD-11, CD-13..CD-17)
+# Total conduits: 17 evaluated (paper's 19/3 counts include 2 OOS items
+# CD-12 and CD-18 excluded from evaluation — out-of-scope for testbed).
+
+meta:
+  schema_version: "1"
+  domain: airport
+  source:
+    standards:
+      - "IATA RP 1797"
+      - "IEC 62443-2-4:2023"
+      - "IEC 62443-3-2:2020"
+      - "ACRP Report 30 (TRB 2010)"
+    paper: "Kim 2026, Compliant Yet Blind §4, Table 2"
+  disclaimer: >
+    Abstract structural pattern. All labels are generic roles (APT, ALN-*, VND).
+    No real airport operator, airline, or CUPPS vendor is identified.
+
+asset_owners:
+  - { id: APT,   role: AO, description: "Airport operator (platform provider under RP 1797)" }
+  - { id: ALN-A, role: AO, description: "Tenant airline A (application provider under RP 1797)" }
+  - { id: ALN-B, role: AO, description: "Tenant airline B" }
+  - { id: ALN-C, role: AO, description: "Tenant airline C" }
+  - { id: VND,   role: AO, description: "CUPPS/BHS vendor (platform operator); treated as AO because operates its own asset class (middleware, cloud config)" }
+
+# SP-AO relationships per IEC 62443-2-4.
+# Only relationships whose scope is limited to specific conduits need `scope:`.
+# An unscoped entry means the SP-AO relationship covers all conduits on that pair.
+sp_relations:
+  # Vendor's cloud is a service provider to the airport for config-push and
+  # managed-NOC activities on the CUPPS platform.
+  - { sp: VND, ao: APT, scope: [CD-01, CD-02, CD-03, CD-09, CD-10] }
+
+# Zone partitioning authority (NC-3 evaluation).
+# Per IEC 62443-3-2 ZCR-1, a single organisation designates each zone.
+zone_authorities:
+  - { zone: VLAN-IDF,        org: APT }
+  - { zone: VLAN-Core,       org: APT }
+  - { zone: VLAN-Shared,     org: APT }
+  - { zone: VLAN-VND-MW,     org: VND }
+  - { zone: VLAN-VND-MGMT,   org: VND }
+  - { zone: VLAN-VND-Cloud,  org: VND }
+  - { zone: VLAN-ALN-A,      org: ALN-A }
+  - { zone: VLAN-ALN-B,      org: ALN-B }
+  - { zone: VLAN-ALN-C,      org: ALN-C }
+  - { zone: VLAN-DMZ,        org: APT }
+  # IDP federation: under today's common-use deployments a single IDP operator
+  # (the airport) holds both sides of the federation trust, so the zone
+  # authority is APT on both endpoints. Paper §8 Discussion notes CD-04/CD-05
+  # become cross-AO *only if* airport and vendor evolve to independent Keycloak
+  # instances with OIDC federation — until then, treated as borderline
+  # (NC-1 AND NC-2 AND NOT NC-3).
+  - { zone: VLAN-IDP-Fed-VND, org: APT }
+  - { zone: VLAN-IDP-Fed-ALN, org: APT }
+  - { zone: VLAN-IDP,         org: APT }
+
+conduits:
+  # --- Blind-spot conduits (NC-1 AND NC-2 AND NC-3) ---
+  - id: CD-08a
+    description: "CUPPS workstation to middleware heartbeat (APT->VND)"
+    from: { owner: APT,   zone: VLAN-IDF,    asset: "CUPPS workstation" }
+    to:   { owner: VND,   zone: VLAN-VND-MW, asset: "CUPPS middleware" }
+    notes: "Cross-AO conduit; VND is not SP for this endpoint pair; distinct zone authorities."
+
+  - id: CD-08b
+    description: "CUPPS middleware to airline DCS session-update (VND->ALN-A)"
+    from: { owner: VND,   zone: VLAN-VND-MW, asset: "CUPPS middleware" }
+    to:   { owner: ALN-A, zone: VLAN-ALN-A,  asset: "Airline DCS" }
+    notes: "PP/AP seam: airline is not SP, airport has no bilateral contract with airline for this conduit."
+
+  - id: CD-06
+    description: "Latent cross-VLAN leakage potential (APT shared <-> ALN)"
+    from: { owner: APT,   zone: VLAN-Shared, asset: "Shared airport fabric" }
+    to:   { owner: ALN-B, zone: VLAN-ALN-B,  asset: "Airline tenant space" }
+    notes: "No traffic under compliance, but zero safety margin (latent blind spot)."
+
+  # --- Borderline (NC-1 AND NC-2, NC-3 fails) ---
+  # Both endpoints live in APT-designated federation zones (single IDP
+  # operator). NC-3 fails because one organisation bridges both zones.
+  - id: CD-04
+    description: "Vendor cloud to airport IDP (OIDC federation)"
+    from: { owner: VND, zone: VLAN-IDP-Fed-VND, asset: "Vendor OIDC client" }
+    to:   { owner: APT, zone: VLAN-IDP,         asset: "IDP federation endpoint" }
+    notes: "Federated trust today; becomes blind spot if airport/vendor split into independent IDP operators (§8)."
+
+  - id: CD-05
+    description: "Airline cloud to airport IDP (OIDC federation)"
+    from: { owner: ALN-C, zone: VLAN-IDP-Fed-ALN, asset: "Airline OIDC client" }
+    to:   { owner: APT,   zone: VLAN-IDP,         asset: "IDP federation endpoint" }
+    notes: "Same pattern as CD-04: borderline under single-IDP-operator assumption."
+
+  # --- Resolved-by-SP (NC-1 holds but SP-AO relationship covers) ---
+  - id: CD-01
+    description: "Vendor cloud config push to DMZ"
+    from: { owner: VND, zone: VLAN-VND-Cloud, asset: "Vendor cloud" }
+    to:   { owner: APT, zone: VLAN-DMZ,       asset: "Airport DMZ relay" }
+    notes: "VND is APT's SP for this conduit (IEC 62443-2-4)."
+
+  - id: CD-02
+    description: "Vendor cloud config push to middleware (indirect path)"
+    from: { owner: VND, zone: VLAN-VND-Cloud, asset: "Vendor cloud" }
+    to:   { owner: APT, zone: VLAN-DMZ,       asset: "Config relay" }
+    notes: "Covered by VND->APT SP-AO relationship."
+
+  - id: CD-03
+    description: "Vendor audit log push APT->VND managed NOC"
+    from: { owner: APT, zone: VLAN-IDF,      asset: "Audit aggregator" }
+    to:   { owner: VND, zone: VLAN-VND-MGMT, asset: "Vendor managed NOC" }
+    notes: "Part of VND SP scope for APT."
+
+  - id: CD-09
+    description: "Vendor config push to CUPPS middleware"
+    from: { owner: VND, zone: VLAN-VND-MW,   asset: "Middleware" }
+    to:   { owner: APT, zone: VLAN-VND-MGMT, asset: "Management plane" }
+    notes: "Intra-vendor management; APT oversight via SP-AO scope."
+
+  - id: CD-10
+    description: "Airport monitoring tap to vendor management"
+    from: { owner: APT, zone: VLAN-IDF,      asset: "SOC-APT tap" }
+    to:   { owner: VND, zone: VLAN-VND-MGMT, asset: "Vendor mgmt" }
+    notes: "Covered by SP-AO relationship."
+
+  # --- No cross-AO (NC-1 fails: same-owner endpoints) ---
+  - id: CD-07
+    description: "BHS PLC to airport IDF (single APT owner)"
+    from: { owner: APT, zone: VLAN-IDF, asset: "BHS PLC" }
+    to:   { owner: APT, zone: VLAN-IDF, asset: "Airport switch" }
+    notes: "Same owner; no cross-AO split."
+
+  - id: CD-11
+    description: "Airport core router to core switch"
+    from: { owner: APT, zone: VLAN-Core, asset: "Router" }
+    to:   { owner: APT, zone: VLAN-Core, asset: "Switch" }
+
+  - id: CD-13
+    description: "APT SIEM to APT log server"
+    from: { owner: APT, zone: VLAN-Core, asset: "SIEM" }
+    to:   { owner: APT, zone: VLAN-Core, asset: "Log server" }
+
+  - id: CD-14
+    description: "ALN-A internal DCS cluster"
+    from: { owner: ALN-A, zone: VLAN-ALN-A, asset: "DCS primary" }
+    to:   { owner: ALN-A, zone: VLAN-ALN-A, asset: "DCS replica" }
+
+  - id: CD-15
+    description: "ALN-B internal DCS cluster"
+    from: { owner: ALN-B, zone: VLAN-ALN-B, asset: "DCS primary" }
+    to:   { owner: ALN-B, zone: VLAN-ALN-B, asset: "DCS replica" }
+
+  - id: CD-16
+    description: "ALN-C internal DCS cluster"
+    from: { owner: ALN-C, zone: VLAN-ALN-C, asset: "DCS primary" }
+    to:   { owner: ALN-C, zone: VLAN-ALN-C, asset: "DCS replica" }
+
+  - id: CD-17
+    description: "VND internal middleware cluster"
+    from: { owner: VND, zone: VLAN-VND-MW, asset: "MW primary" }
+    to:   { owner: VND, zone: VLAN-VND-MW, asset: "MW replica" }

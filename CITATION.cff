@@ -1,0 +1,46 @@
+cff-version: 1.2.0
+title: "BlindSpotCheck: IEC 62443 multi-tenant monitoring blind-spot evaluator"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: Kim
+    given-names: Woowi
+    name-suffix: Danny
+    email: kimyngwie1@gmail.com
+    orcid: "https://orcid.org/0009-0001-9503-7214"
+    affiliation: "Independent Researcher"
+version: "0.1.0"
+date-released: "2026-04-17"
+license: MIT
+repository-code: "https://github.com/wwkim/iec62443-multitenant-blindspot-check"
+keywords:
+  - IEC 62443
+  - cybersecurity
+  - OT security
+  - multi-tenant
+  - monitoring blind spot
+  - airport security
+abstract: >
+  BlindSpotCheck evaluates the NC-1 AND NC-2 AND NC-3 biconditional from
+  Kim (2026) "Compliant Yet Blind" against an arbitrary multi-tenant
+  IEC 62443-governed architecture described in YAML. It classifies each
+  conduit as blind-spot, borderline, resolved-by-SP, or no-cross-AO and
+  emits a per-conduit mitigation path.
+preferred-citation:
+  type: article
+  authors:
+    - family-names: Kim
+      given-names: Woowi
+      name-suffix: Danny
+  title: "Compliant Yet Blind: Measuring and Closing Multi-Tenant Monitoring Gaps in IEC 62443"
+  year: 2026
+  journal: "International Journal of Critical Infrastructure Protection (submitted)"
+references:
+  - type: generic
+    title: "Compliant Yet Blind: Multi-Tenant Testbed"
+    authors:
+      - family-names: Kim
+        given-names: Woowi
+        name-suffix: Danny
+    doi: "10.5281/zenodo.19617578"
+    year: 2026

@@ -1,0 +1,32 @@
+{
+  "title": "BlindSpotCheck: IEC 62443 multi-tenant monitoring blind-spot evaluator",
+  "upload_type": "software",
+  "description": "<p>BlindSpotCheck evaluates the NC-1 &amp; NC-2 &amp; NC-3 biconditional from Kim (2026) &quot;Compliant Yet Blind: Measuring and Closing Multi-Tenant Monitoring Gaps in IEC 62443&quot; against an arbitrary multi-tenant IEC 62443-governed architecture described in YAML. It classifies each conduit as blind-spot, borderline, resolved-by-SP, or no-cross-AO and emits a per-conduit mitigation path. Framework-grounded example architectures (airport common-use terminal, rail passenger station, maritime container terminal) are bundled.</p>",
+  "creators": [
+    {
+      "name": "Kim, Woowi (Danny)",
+      "affiliation": "Independent Researcher",
+      "orcid": "0009-0001-9503-7214"
+    }
+  ],
+  "keywords": [
+    "IEC 62443",
+    "OT security",
+    "multi-tenant",
+    "monitoring blind spot",
+    "airport cybersecurity",
+    "critical infrastructure protection"
+  ],
+  "license": "MIT",
+  "access_right": "open",
+  "language": "eng",
+  "related_identifiers": [
+    {
+      "relation": "isSupplementTo",
+      "identifier": "10.5281/zenodo.19617578",
+      "resource_type": "dataset",
+      "scheme": "doi"
+    }
+  ],
+  "communities": []
+}

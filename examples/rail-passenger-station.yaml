@@ -1,0 +1,115 @@
+# Rail passenger station — derivation example (hypothetical, framework-grounded).
+#
+# Derivation source:
+#   - CENELEC CLC/TS 50701:2023 — Railway applications: Cybersecurity
+#     (specialises the IEC 62443 role model for rail).
+#   - IEC 62443-3-2:2020 — zone/conduit design (ZCR-1, Clauses 4.3.1-4.3.3)
+#     inherited verbatim by TS 50701.
+#
+# Structural pattern (publicly attested in EU liberalised-market station
+# documentation):
+#   - Infrastructure Manager (IM) owns the physical station fabric:
+#     Passenger Information Displays (PID), ticketing backbone, operational
+#     control systems (signalling interlocks), and the common station LAN.
+#   - Multiple Train Operating Companies (TOCs) run their own sales, passenger
+#     manifest, and crew-dispatch systems over that shared fabric.
+#   - A Station Services Vendor (SSV) operates the PID/ticketing platform
+#     software under contract to IM.
+#
+# This YAML encodes the structural seam where TOC-originated traffic transits
+# IM-defined zones with no IM-TOC service-provider relationship.
+#
+# Kim 2026 §8.1 claims this seam inherits the airport blind-spot pattern. The
+# classification below quantifies the claim: under the encoded structure, the
+# conduits IM<->TOC inherit NC-1 AND NC-2 AND NC-3.
+#
+# All labels are ABSTRACT ROLES. No real rail operator identification.
+
+meta:
+  schema_version: "1"
+  domain: rail
+  source:
+    standards:
+      - "CENELEC CLC/TS 50701:2023"
+      - "IEC 62443-3-2:2020"
+      - "IEC 62443-2-4:2023"
+    paper: "Kim 2026, Compliant Yet Blind §8.1 (cross-domain)"
+  disclaimer: >
+    Abstract structural pattern derived from public CENELEC/IEC standards.
+    All labels are generic roles (IM, TOC-A/B, SSV). No real operator identified.
+
+asset_owners:
+  - { id: IM,    role: AO, description: "Infrastructure Manager (owns station fabric)" }
+  - { id: TOC-A, role: AO, description: "Train Operating Company A (independent AO)" }
+  - { id: TOC-B, role: AO, description: "Train Operating Company B" }
+  - { id: SSV,   role: AO, description: "Station Services Vendor (operates PID/ticketing platform); treated as AO over its own asset class" }
+
+sp_relations:
+  # SSV operates the PID/ticketing platform under contract to IM.
+  - { sp: SSV, ao: IM, scope: [CD-PID-01, CD-TICK-01] }
+
+zone_authorities:
+  - { zone: ZONE-IM-LAN,       org: IM }
+  - { zone: ZONE-IM-CORE,      org: IM }
+  - { zone: ZONE-IM-SIGNAL,    org: IM }
+  - { zone: ZONE-SSV-MW,       org: SSV }
+  - { zone: ZONE-TOC-A-INTRA,  org: TOC-A }
+  - { zone: ZONE-TOC-B-INTRA,  org: TOC-B }
+  - { zone: ZONE-STATION-WIFI, org: IM }
+
+conduits:
+  # --- Blind-spot candidates: TOC traffic transiting IM-designated zones ---
+  - id: CD-TOC-A-PID
+    description: "TOC-A train schedule update to station PID over IM LAN"
+    from: { owner: TOC-A, zone: ZONE-TOC-A-INTRA, asset: "TOC-A schedule service" }
+    to:   { owner: IM,    zone: ZONE-IM-LAN,      asset: "PID display cluster" }
+    notes: "Cross-AO; IM is not TOC-A's SP; IM designates zone authority for both ends of station fabric."
+
+  - id: CD-TOC-B-PID
+    description: "TOC-B train schedule update to station PID over IM LAN"
+    from: { owner: TOC-B, zone: ZONE-TOC-B-INTRA, asset: "TOC-B schedule service" }
+    to:   { owner: IM,    zone: ZONE-IM-LAN,      asset: "PID display cluster" }
+
+  - id: CD-TOC-A-TICK
+    description: "TOC-A ticket-sales reconciliation to shared ticket ledger"
+    from: { owner: TOC-A, zone: ZONE-TOC-A-INTRA, asset: "TOC-A ticketing" }
+    to:   { owner: IM,    zone: ZONE-IM-LAN,      asset: "Station ticket ledger" }
+    notes: "Ledger owned by IM but carries TOC-A transactional data."
+
+  - id: CD-TOC-B-TICK
+    description: "TOC-B ticket-sales reconciliation"
+    from: { owner: TOC-B, zone: ZONE-TOC-B-INTRA, asset: "TOC-B ticketing" }
+    to:   { owner: IM,    zone: ZONE-IM-LAN,      asset: "Station ticket ledger" }
+
+  # --- Resolved-by-SP (SSV operates PID/ticketing under IM contract) ---
+  - id: CD-PID-01
+    description: "SSV platform to IM PID management"
+    from: { owner: SSV, zone: ZONE-SSV-MW,  asset: "SSV middleware" }
+    to:   { owner: IM,  zone: ZONE-IM-CORE, asset: "PID manager" }
+
+  - id: CD-TICK-01
+    description: "SSV ticketing platform admin plane"
+    from: { owner: SSV, zone: ZONE-SSV-MW,  asset: "Ticketing mgmt" }
+    to:   { owner: IM,  zone: ZONE-IM-CORE, asset: "Admin ingress" }
+
+  # --- No cross-AO (same-owner) ---
+  - id: CD-IM-SIGNAL
+    description: "IM signalling interlock intra-cluster"
+    from: { owner: IM, zone: ZONE-IM-SIGNAL, asset: "Interlock A" }
+    to:   { owner: IM, zone: ZONE-IM-SIGNAL, asset: "Interlock B" }
+    notes: "Entirely within IM; no cross-AO."
+
+  - id: CD-TOC-A-INTRA
+    description: "TOC-A internal DCS cluster (same as airline DCS)"
+    from: { owner: TOC-A, zone: ZONE-TOC-A-INTRA, asset: "Primary" }
+    to:   { owner: TOC-A, zone: ZONE-TOC-A-INTRA, asset: "Replica" }
+
+  - id: CD-TOC-B-INTRA
+    description: "TOC-B internal DCS cluster"
+    from: { owner: TOC-B, zone: ZONE-TOC-B-INTRA, asset: "Primary" }
+    to:   { owner: TOC-B, zone: ZONE-TOC-B-INTRA, asset: "Replica" }
+
+  - id: CD-IM-WIFI
+    description: "IM station Wi-Fi internal mgmt"
+    from: { owner: IM, zone: ZONE-STATION-WIFI, asset: "Wi-Fi controller" }
+    to:   { owner: IM, zone: ZONE-IM-CORE,      asset: "Mgmt server" }

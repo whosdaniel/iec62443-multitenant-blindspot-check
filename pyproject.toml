@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "blindspotcheck"
+version = "0.1.0"
+description = "IEC 62443 NC-1/NC-2/NC-3 multi-tenant monitoring blind-spot evaluator"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Woowi (Danny) Kim", email = "kimyngwie1@gmail.com" }
+]
+keywords = ["iec62443", "cybersecurity", "ot-security", "multi-tenant", "airport-security"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "PyYAML>=6.0,<7.0",
+    "jsonschema>=4.18,<5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.3,<10.0",
+    "bandit>=1.7,<2.0",
+    "pip-audit>=2.7,<3.0",
+]
+
+[project.scripts]
+blindspotcheck = "blindspotcheck.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/wwkim/iec62443-multitenant-blindspot-check"
+Issues = "https://github.com/wwkim/iec62443-multitenant-blindspot-check/issues"
+Paper = "https://doi.org/10.5281/zenodo.19617578"
+
+[tool.setuptools.packages.find]
+include = ["blindspotcheck*"]
+
+[tool.setuptools.package-data]
+"blindspotcheck.schemas" = ["*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+pythonpath = ["."]
