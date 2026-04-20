@@ -44,10 +44,18 @@ htmlcov/
 *~
 Thumbs.db
 
-# Secrets (defence-in-depth — this tool produces none, but lock the door)
+# Secrets (defence-in-depth; this tool produces none, but lock the door)
 .env
 .env.*
 *.pem
 *.key
 credentials.json
 secrets/
+
+# Local Claude Code tooling + author's dev notes (not for public release)
+.claude/
+CLAUDE.md
+claude.md
+
+# Paper snapshot is a private reference for the author; do not ship
+docs/paper-snapshot/
