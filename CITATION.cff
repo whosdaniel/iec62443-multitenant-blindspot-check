@@ -12,6 +12,14 @@ version: "1.0.0"
 date-released: "2026-04-20"
 license: MIT
 repository-code: "https://github.com/whosdaniel/iec62443-multitenant-blindspot-check"
+doi: "10.5281/zenodo.19659157"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.19659157"
+    description: "Concept DOI (resolves to the latest released version)"
+  - type: doi
+    value: "10.5281/zenodo.19659158"
+    description: "Version DOI for v1.0.0"
 keywords:
   - IEC 62443
   - cybersecurity

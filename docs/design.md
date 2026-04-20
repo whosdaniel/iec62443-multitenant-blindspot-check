@@ -125,11 +125,13 @@ Among the three, the CLI YAML is the only format with a defined schema, cross-la
 
 - **Static model.** Architectures that evolve over time (e.g. dynamic microservice meshes) must be re-snapshot and re-evaluated.
 - **Human-authored YAML.** Errors in the YAML (wrong ownership, missing SP-AO relationship) propagate into classification. The tool validates structure, not substance.
-- **Zone authority metadata is optional.** Without it, NC-2 falls back to SC-1 parity, which loses the "borderline" distinction. Supply `zone_authorities` for a full classification.
+- **Zone authority metadata is optional.** Without it, NC-2 falls back to endpoint-AO difference, which loses the "borderline" distinction. Supply `zone_authorities` for a full classification.
 
 ## References
 
-- W. Kim (2026). *Compliant Yet Blind: Measuring and Closing Multi-Tenant Monitoring Gaps in IEC 62443*. Submitted to IJCIP. Testbed DOI: [10.5281/zenodo.19627489](https://doi.org/10.5281/zenodo.19627489) (v1.1.0 version DOI; concept DOI 10.5281/zenodo.19617578 resolves to the latest testbed version).
+- W. Kim (2026). *Compliant Yet Blind: Measuring and Closing Multi-Tenant Monitoring Gaps in IEC 62443*. Submitted to IJCIP.
+- BlindSpotCheck v1.0.0 (this tool): [10.5281/zenodo.19659158](https://doi.org/10.5281/zenodo.19659158) — version DOI; concept DOI [10.5281/zenodo.19659157](https://doi.org/10.5281/zenodo.19659157) resolves to the current release.
+- Companion testbed (paper §5 measurement artefact): [10.5281/zenodo.19627489](https://doi.org/10.5281/zenodo.19627489) — v1.1.0 version DOI; concept DOI `10.5281/zenodo.19617578` resolves to the latest testbed version.
 - IEC 62443-2-1:2024, IEC 62443-2-4:2023, IEC 62443-3-2:2020, IEC 62443-3-3:2013.
 - IATA Recommended Practice 1797 (Common Use Passenger Processing Systems).
 - CENELEC CLC/TS 50701:2023 (Railway applications - Cybersecurity).

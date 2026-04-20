@@ -43,7 +43,8 @@ blindspotcheck = "blindspotcheck.cli:main"
 [project.urls]
 Homepage = "https://github.com/whosdaniel/iec62443-multitenant-blindspot-check"
 Issues = "https://github.com/whosdaniel/iec62443-multitenant-blindspot-check/issues"
-Paper = "https://doi.org/10.5281/zenodo.19627489"
+Archive = "https://doi.org/10.5281/zenodo.19659157"
+Testbed = "https://doi.org/10.5281/zenodo.19627489"
 
 [tool.setuptools.packages.find]
 include = ["blindspotcheck*"]

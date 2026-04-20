@@ -15,6 +15,11 @@ Table 3 and Appendix D.1 exactly and implements the paper §4 BATCH 8
 rule. Python CLI is authoritative; the browser evaluator is a
 line-for-line port verified by cross-language parity tests.
 
+Archived at Zenodo: version DOI
+[10.5281/zenodo.19659158](https://doi.org/10.5281/zenodo.19659158),
+concept DOI (resolves to the latest release)
+[10.5281/zenodo.19659157](https://doi.org/10.5281/zenodo.19659157).
+
 ### BATCH 8 alignment with paper §4 (2-disjunct SC-1)
 - SC-1 is now a 2-disjunct predicate per W. Kim (2026) paper §4
   BATCH 8: either the endpoint asset owners differ, or an artefact

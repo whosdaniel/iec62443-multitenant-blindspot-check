@@ -1,5 +1,7 @@
 # BlindSpotCheck
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19659157.svg)](https://doi.org/10.5281/zenodo.19659157)
+
 A tool for checking IEC 62443 multi-tenant architectures for monitoring blind spots.
 
 You describe an architecture (either by drawing it in the browser canvas or writing a YAML file), and BlindSpotCheck tells you which conduits don't have a clear monitoring owner. It's the companion tool to W. Kim (2026), *"Compliant Yet Blind: Measuring and Closing Multi-Tenant Monitoring Gaps in IEC 62443"*, and reproduces the paper's Table 3 result exactly.
@@ -205,13 +207,15 @@ The JS suite covers the evaluator, schema validator, template Table 3 reproducti
 
 ## Cite
 
-See [`CITATION.cff`](CITATION.cff). BibTeX (the tool's Zenodo DOI gets added on the first release tag):
+See [`CITATION.cff`](CITATION.cff). BibTeX:
 
 ```bibtex
 @software{kim2026blindspotcheck,
   author  = {Kim, W.},
   title   = {{BlindSpotCheck: IEC 62443 multi-tenant monitoring blind-spot evaluator}},
   year    = {2026},
+  version = {1.0.0},
+  doi     = {10.5281/zenodo.19659158},
   url     = {https://github.com/whosdaniel/iec62443-multitenant-blindspot-check}
 }
 
@@ -223,7 +227,9 @@ See [`CITATION.cff`](CITATION.cff). BibTeX (the tool's Zenodo DOI gets added on 
 }
 ```
 
-The companion testbed for paper §5 is archived at [10.5281/zenodo.19627489](https://doi.org/10.5281/zenodo.19627489). That's the v1.1.0 version DOI the paper cites. The concept DOI `10.5281/zenodo.19617578` resolves to the latest testbed version if you need a version-agnostic pointer.
+The tool itself is archived at [10.5281/zenodo.19659158](https://doi.org/10.5281/zenodo.19659158) for v1.0.0. The concept DOI [10.5281/zenodo.19659157](https://doi.org/10.5281/zenodo.19659157) resolves to whichever version is current, which is what you usually want for citation.
+
+The companion testbed for paper §5 is a separate archive at [10.5281/zenodo.19627489](https://doi.org/10.5281/zenodo.19627489); its concept DOI is `10.5281/zenodo.19617578`.
 
 ## Licence
 
