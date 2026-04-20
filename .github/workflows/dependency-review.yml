@@ -24,9 +24,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
 
-      # actions/dependency-review-action v4.3.4
+      # actions/dependency-review-action v4.9.0
       - name: Dependency Review
-        uses: actions/dependency-review-action@5a2ce3f5b92ee19cbb1541a4984c76d675cf4f3a
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48
         with:
           fail-on-severity: moderate
           comment-summary-in-pr: on-failure
