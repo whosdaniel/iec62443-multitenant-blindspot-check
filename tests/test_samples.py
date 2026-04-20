@@ -1,10 +1,10 @@
 """
 Regression tests on bundled example YAMLs.
 
-Airport sample MUST reproduce the distribution reported in Kim (2026) Table 2
-(within the scope of the testbed architecture: 3 blind spots, 2 borderline).
-Rail and maritime samples verify that the cross-domain NC structures
-(§8.1) instantiate the same blind-spot pattern.
+Airport sample MUST reproduce Table 3 of W. Kim (2026) exactly, per conduit
+ID and verdict. Rail and maritime samples verify that the cross-domain NC
+structures (paper §8.1 analytic hypothesis) instantiate the same blind-spot
+pattern.
 """
 
 from __future__ import annotations
@@ -44,15 +44,55 @@ def test_sample_yaml_loads_and_classifies(
     )
 
 
-def test_airport_sample_reproduces_paper_table2() -> None:
-    """Exact distribution checks for the airport YAML (Kim 2026 Table 2)."""
+def test_airport_sample_reproduces_paper_table3() -> None:
+    """
+    Exact per-conduit verdict reproduction of W. Kim (2026) Table 3.
+
+    The airport YAML must classify every conduit identically to the paper:
+      - 3 blind spots     (CD-06, CD-08a, CD-08b)
+      - 2 borderline      (CD-04, CD-05)
+      - 2 resolved-by-sp  (CD-01, CD-09)
+      - 12 no-cross-ao    (CD-02, CD-03, CD-07, CD-10, CD-11,
+                            CD-20..CD-26)
+    CD-12 is out-of-scope per 49 CFR Part 1520 SSI and is deliberately
+    omitted from the YAML. 3/19 = 15.8% is the paper's headline figure.
+    """
     arch = load_architecture_from_path(EXAMPLES / "airport-common-use-terminal.yaml")
     report = evaluate_architecture(arch)
+    actual = {r.conduit_id: r.verdict.value for r in report.results}
+
+    expected = {
+        "CD-01":  Verdict.RESOLVED_BY_SP.value,
+        "CD-02":  Verdict.NO_CROSS_AO.value,
+        "CD-03":  Verdict.NO_CROSS_AO.value,
+        "CD-04":  Verdict.BORDERLINE.value,
+        "CD-05":  Verdict.BORDERLINE.value,
+        "CD-06":  Verdict.BLIND_SPOT.value,
+        "CD-07":  Verdict.NO_CROSS_AO.value,
+        "CD-08a": Verdict.BLIND_SPOT.value,
+        "CD-08b": Verdict.BLIND_SPOT.value,
+        "CD-09":  Verdict.RESOLVED_BY_SP.value,
+        "CD-10":  Verdict.NO_CROSS_AO.value,
+        "CD-11":  Verdict.NO_CROSS_AO.value,
+        "CD-20":  Verdict.NO_CROSS_AO.value,
+        "CD-21":  Verdict.NO_CROSS_AO.value,
+        "CD-22":  Verdict.NO_CROSS_AO.value,
+        "CD-23":  Verdict.NO_CROSS_AO.value,
+        "CD-24":  Verdict.NO_CROSS_AO.value,
+        "CD-25":  Verdict.NO_CROSS_AO.value,
+        "CD-26":  Verdict.NO_CROSS_AO.value,
+    }
+    assert actual == expected, (
+        "Airport YAML must reproduce Table 3 ID-for-ID. "
+        f"Diff: expected {expected}, got {actual}"
+    )
+
     dist = report.distribution()
-    # Paper §4 Table 2 (within testbed scope: 17 evaluated conduits).
-    assert dist[Verdict.BLIND_SPOT.value] == 3,  dist
-    assert dist[Verdict.BORDERLINE.value] == 2,  dist
-    assert dist[Verdict.RESOLVED_BY_SP.value] >= 5, dist
+    assert dist[Verdict.BLIND_SPOT.value] == 3
+    assert dist[Verdict.BORDERLINE.value] == 2
+    assert dist[Verdict.RESOLVED_BY_SP.value] == 2
+    assert dist[Verdict.NO_CROSS_AO.value] == 12
+    assert sum(dist.values()) == 19
 
 
 def test_all_samples_declare_source_standards() -> None:

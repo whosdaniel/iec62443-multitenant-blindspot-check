@@ -123,7 +123,7 @@ def test_top_level_must_be_mapping() -> None:
 
 def test_non_ao_role_in_endpoint_is_accepted_but_not_blind_spot() -> None:
     """
-    If an endpoint's owner has role != AO (e.g. integrator), NC-2 will not
+    If an endpoint's owner has role != AO (e.g. integrator), NC-1 will not
     classify it as a blind spot even if the pair is distinct.
     """
     from blindspotcheck.evaluator import Verdict, evaluate_architecture
@@ -144,6 +144,6 @@ def test_non_ao_role_in_endpoint_is_accepted_but_not_blind_spot() -> None:
     }
     validate_architecture(arch)  # must pass schema
     (r,) = evaluate_architecture(arch).results
-    # integrator is not AO, so NC-2 (both-AO requirement) fails
-    assert r.nc2 is False
+    # integrator is not AO, so NC-1 (both-AO requirement) fails
+    assert r.nc1 is False
     assert r.verdict is not Verdict.BLIND_SPOT

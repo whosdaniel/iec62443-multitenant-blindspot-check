@@ -1,19 +1,23 @@
 """
-Core NC-1/NC-2/NC-3 evaluation logic.
+Core SC-1/NC-1/NC-2 evaluation logic.
 
-Biconditional (Kim 2026, "Compliant Yet Blind" §4.1):
+Biconditional (W. Kim 2026, "Compliant Yet Blind" §4.1):
 
-    BlindSpot(c) <==> NC-1(c) AND NC-2(c) AND NC-3(c)
+    SC-1(c)  ==>  [ BlindSpot(c)  <==>  NC-1(c) AND NC-2(c) ]
 
 where for a conduit c:
-    NC-1(c): the two endpoints belong to distinct asset owners (multi-AO conduit).
-             Derived from IEC 62443-2-1 Clause 3.1.2 (AO definition).
-    NC-2(c): no service-provider-to-asset-owner relationship bridges the conduit.
-             Derived from IEC 62443-2-4 Clauses 3.1.12-3.1.13 (SP sub-types)
-             and SP.08.02 BR (SP-AO logging obligation).
-    NC-3(c): no single organisation designates the zones at *both* endpoints
-             (i.e. no unified partitioning authority can assign monitoring).
-             Derived from IEC 62443-3-2 ZCR-1 (Clauses 4.3.1-4.3.3).
+    SC-1(c): scope condition. An asset belonging to a different asset owner
+             is present at one endpoint (the conduit crosses an asset-owner
+             boundary). Derived from IEC 62443-2-1 Clause 3.1.2 (AO definition).
+    NC-1(c): role-typing condition. The "other" asset owner is independent,
+             not a service provider under IEC 62443-2-4 (neither an integration
+             SP per Clause 3.1.12 nor a maintenance SP per Clause 3.1.13). A
+             covering SP-AO relationship means 62443-2-4 SP.08.02 BR log-sharing
+             obligations already flow across the conduit.
+    NC-2(c): governance condition. No single organisation designates the zones
+             at *both* endpoints. Derived from IEC 62443-3-2:2020 ZCR 3
+             Clause 4.4 (in particular ZCR 3.1, Clause 4.4.2): zone/conduit
+             methodology presupposes a single partitioning authority per zone.
 
 This module is intentionally pure: no I/O, no YAML, no CLI. It takes already-
 validated dict input and returns classification records.
@@ -40,9 +44,9 @@ class NCResult:
     """Per-conduit result: the three flags plus classification and mitigation."""
 
     conduit_id: str
+    sc1: bool
     nc1: bool
     nc2: bool
-    nc3: bool
     verdict: Verdict
     mitigation: tuple[str, ...] = field(default_factory=tuple)
     rationale: str = ""
@@ -51,9 +55,9 @@ class NCResult:
         """Flat dict form suitable for serialisation."""
         return {
             "conduit_id": self.conduit_id,
+            "sc1": self.sc1,
             "nc1": self.nc1,
             "nc2": self.nc2,
-            "nc3": self.nc3,
             "verdict": self.verdict.value,
             "mitigation": list(self.mitigation),
             "rationale": self.rationale,
@@ -86,7 +90,7 @@ class ArchitectureReport:
 
 def evaluate_architecture(arch: dict) -> ArchitectureReport:
     """
-    Run NC-1/NC-2/NC-3 evaluation across every conduit in `arch`.
+    Run SC-1/NC-1/NC-2 evaluation across every conduit in `arch`.
 
     Args:
         arch: A pre-validated architecture dict matching schemas/architecture-v1.json.
@@ -114,28 +118,33 @@ def evaluate_architecture(arch: dict) -> ArchitectureReport:
     )
 
 
-def _index_sp_relations(relations: Iterable[dict]) -> dict[tuple[str, str], set[str] | None]:
+def _index_sp_relations(
+    relations: Iterable[dict],
+) -> dict[tuple[str, str], list[dict]]:
     """
     Index SP-AO relations by (sp, ao) pair.
 
-    Value is either:
-      - set of explicit conduit ids the relation covers, or
-      - None if the relation covers every conduit matching this pair.
+    Each key maps to a list of relation entries, where each entry is a
+    dict ``{"scope": set[str] | None, "subtype": str}``. We keep them
+    as a list rather than folding into a single aggregate because a
+    single (sp, ao) pair can legitimately carry two distinct
+    relationships (one integration, one maintenance) that need to be
+    evaluated independently when checking whether a conduit is covered.
+
+    The default `subtype` is ``"both"`` for entries omitting the
+    ``sp_subtype`` field, preserving the pre-Batch-4 behaviour where
+    every SP-AO relationship was assumed to cover monitoring.
     """
-    idx: dict[tuple[str, str], set[str] | None] = {}
+    idx: dict[tuple[str, str], list[dict]] = {}
     for r in relations:
         key = (r["sp"], r["ao"])
         scope = r.get("scope")
-        if scope is None:
-            idx[key] = None  # covers all matching conduits
-        else:
-            existing = idx.get(key)
-            if existing is None and key in idx:
-                # Already "covers all"; explicit scope is subsumed.
-                continue
-            s: set[str] = set(existing) if isinstance(existing, set) else set()
-            s.update(scope)
-            idx[key] = s
+        subtype = r.get("sp_subtype", "both")
+        entry: dict = {
+            "scope": set(scope) if isinstance(scope, list) else None,
+            "subtype": subtype,
+        }
+        idx.setdefault(key, []).append(entry)
     return idx
 
 
@@ -151,53 +160,51 @@ def _evaluate_conduit(
     from_zone = c["from"].get("zone")
     to_zone = c["to"].get("zone")
 
-    # NC-1: endpoints belong to distinct asset owners.
-    nc1 = from_owner != to_owner
+    # SC-1 (scope condition): endpoints belong to distinct asset owners.
+    sc1 = from_owner != to_owner
 
     # Helper: is `owner` an asset-owner role in this architecture?
     def is_ao(owner_id: str) -> bool:
         return role_by_id.get(owner_id) == "AO"
 
-    # NC-2: neither endpoint owner has a covering SP-AO relationship with the
-    # other that resolves this conduit into a bilateral SP-AO dyad.
+    # NC-1 (role-typing): no SP-AO relationship bridges the conduit, AND both
+    # endpoint owners are independent asset owners (not an SP of the other).
     # A covering relationship = one owner is SP, the other is AO, and either
     # (a) explicit scope includes this conduit id, or (b) no explicit scope.
-    if not nc1:
-        # Same-owner conduit: NC-2 is trivially not satisfied (single-AO).
-        nc2 = False
+    if not sc1:
+        # Same-owner conduit: NC-1 is trivially not satisfied (single-AO).
+        nc1 = False
     else:
         bilateral_covered = (
             _covers(sp_relations, sp=from_owner, ao=to_owner, cid=conduit_id)
             or _covers(sp_relations, sp=to_owner, ao=from_owner, cid=conduit_id)
         )
-        # NC-2: no SP-AO relationship covers this conduit AND both endpoints
-        # are independent asset owners (not vendor-in-SP-role).
         both_aos = is_ao(from_owner) and is_ao(to_owner)
-        nc2 = (not bilateral_covered) and both_aos
+        nc1 = (not bilateral_covered) and both_aos
 
-    # NC-3: no single organisation controls zones at both endpoints.
-    # If zones aren't declared, we conservatively compute: "no single org
-    # bridges" is equivalent to "ownership of the endpoints is already split"
-    # which is NC-1. So the default is to reuse NC-1 when zones are unspecified.
+    # NC-2 (governance): no single organisation controls (designates the zones
+    # at) both endpoints. If zones aren't declared, we fall back conservatively:
+    # "no single org bridges" is equivalent to "ownership of the endpoints is
+    # already split" which is SC-1.
     if from_zone and to_zone and zone_org:
         from_org = zone_org.get(from_zone)
         to_org = zone_org.get(to_zone)
         if from_org is None or to_org is None:
             # Missing zone designation => conservative fallback: assume no
             # single authority bridges.
-            nc3 = True
+            nc2 = True
         else:
-            nc3 = from_org != to_org
+            nc2 = from_org != to_org
     else:
         # No zone metadata: treat as "same-owner => one org, distinct owners => distinct orgs".
-        nc3 = nc1
+        nc2 = sc1
 
-    verdict, mitigation, rationale = _classify(nc1, nc2, nc3)
+    verdict, mitigation, rationale = _classify(sc1, nc1, nc2)
     return NCResult(
         conduit_id=conduit_id,
+        sc1=sc1,
         nc1=nc1,
         nc2=nc2,
-        nc3=nc3,
         verdict=verdict,
         mitigation=tuple(mitigation),
         rationale=rationale,
@@ -205,50 +212,66 @@ def _evaluate_conduit(
 
 
 def _covers(
-    sp_relations: dict[tuple[str, str], set[str] | None],
+    sp_relations: dict[tuple[str, str], list[dict]],
     *,
     sp: str,
     ao: str,
     cid: str,
 ) -> bool:
-    """True if an SP-AO relation covers this conduit."""
-    key = (sp, ao)
-    if key not in sp_relations:
+    """
+    True if an SP-AO relation whose sub-type reaches monitoring scope
+    (maintenance or both) covers this conduit.
+
+    Per paper §2.3 and IEC 62443-2-4 Clause 3.1.12 vs 3.1.13: integration
+    SPs perform design / installation / commissioning only, and SP.08.02
+    BR logging obligation attaches to the maintenance SP role. An
+    integration-only relationship therefore does NOT resolve NC-1 for
+    monitoring purposes; the tool reflects that here.
+    """
+    entries = sp_relations.get((sp, ao))
+    if not entries:
         return False
-    scope = sp_relations[key]
-    if scope is None:  # unscoped => covers all conduits with this pair
-        return True
-    return cid in scope
+    for entry in entries:
+        subtype = entry.get("subtype", "both")
+        if subtype == "integration":
+            # Integration SP does not reach monitoring scope; skip.
+            continue
+        scope = entry.get("scope")
+        if scope is None:  # unscoped => covers every conduit with this pair
+            return True
+        if cid in scope:
+            return True
+    return False
 
 
-def _classify(nc1: bool, nc2: bool, nc3: bool) -> tuple[Verdict, list[str], str]:
+def _classify(sc1: bool, nc1: bool, nc2: bool) -> tuple[Verdict, list[str], str]:
     """
     Apply the §4.1 biconditional classification rule.
     Returns (verdict, mitigation_options, human-readable rationale).
     """
-    if nc1 and nc2 and nc3:
+    if sc1 and nc1 and nc2:
         return (
             Verdict.BLIND_SPOT,
             [
-                "Break NC-1: consolidate endpoints under a single asset owner.",
-                "Break NC-2: establish a contractual SP-AO relationship covering the conduit.",
-                "Break NC-3: assign a single partitioning authority over both endpoints (out-of-band agreement).",
+                "Break SC-1: consolidate endpoints under a single asset owner.",
+                "Break NC-1: establish a contractual SP-AO relationship covering the conduit.",
+                "Break NC-2: assign a single partitioning authority over both endpoints (out-of-band agreement).",
             ],
-            "NC-1 AND NC-2 AND NC-3: structural monitoring blind spot (biconditional §4.1).",
+            "SC-1 AND NC-1 AND NC-2: structural monitoring blind spot (biconditional §4.1).",
         )
-    if nc1 and nc2 and not nc3:
+    if sc1 and nc1 and not nc2:
         return (
             Verdict.BORDERLINE,
-            ["Clarify zone designation to confirm or exclude NC-3."],
-            "NC-1 AND NC-2 hold but a single organisation bridges both endpoint zones (NC-3 fails): borderline.",
+            ["Clarify zone designation to confirm or exclude NC-2."],
+            "SC-1 AND NC-1 hold but a single organisation bridges both endpoint zones (NC-2 fails): borderline.",
         )
-    if nc1 and not nc2:
+    if sc1 and not nc1:
         return (
             Verdict.RESOLVED_BY_SP,
             [],
-            "Multi-AO conduit but an SP-AO relationship covers it: obligations flow via IEC 62443-2-4.",
+            "Cross-AO conduit but an SP-AO relationship covers it: obligations flow via IEC 62443-2-4.",
         )
-    # not nc1: same-owner conduit (no cross-AO split)
+    # not sc1: same-owner conduit (no cross-AO split)
     return (
         Verdict.NO_CROSS_AO,
         [],

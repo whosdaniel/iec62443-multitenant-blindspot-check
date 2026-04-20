@@ -1,8 +1,8 @@
 """
-BlindSpotCheck — IEC 62443 multi-tenant monitoring blind-spot evaluator.
+BlindSpotCheck - IEC 62443 multi-tenant monitoring blind-spot evaluator.
 
-Evaluates the NC-1 AND NC-2 AND NC-3 biconditional from
-  Kim, W. "Compliant Yet Blind: Measuring and Closing Multi-Tenant
+Evaluates the SC-1 AND NC-1 AND NC-2 biconditional from
+  W. Kim, "Compliant Yet Blind: Measuring and Closing Multi-Tenant
   Monitoring Gaps in IEC 62443." 2026.
 
 Public API:

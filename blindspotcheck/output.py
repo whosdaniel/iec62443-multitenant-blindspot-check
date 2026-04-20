@@ -24,12 +24,12 @@ def format_text(report: ArchitectureReport, *, width: int = 100) -> str:
         header += f"  |  Source: {'; '.join(report.source_standards)}"
     lines.append(header)
     lines.append("")
-    lines.append(f"{'Conduit':<16}{'NC-1':<6}{'NC-2':<6}{'NC-3':<6}{'Verdict':<18}Rationale")
+    lines.append(f"{'Conduit':<16}{'SC-1':<6}{'NC-1':<6}{'NC-2':<6}{'Verdict':<18}Rationale")
     lines.append("-" * min(width, 96))
     for r in report.results:
         lines.append(
             f"{r.conduit_id:<16}"
-            f"{_nc(r.nc1):<6}{_nc(r.nc2):<6}{_nc(r.nc3):<6}"
+            f"{_nc(r.sc1):<6}{_nc(r.nc1):<6}{_nc(r.nc2):<6}"
             f"{r.verdict.value:<18}{r.rationale}"
         )
     lines.append("-" * min(width, 96))
@@ -62,24 +62,24 @@ def format_json(report: ArchitectureReport, *, indent: int = 2) -> str:
         "distribution": report.distribution(),
         "conduits": [r.as_row() for r in report.results],
     }
-    return json.dumps(payload, indent=indent, ensure_ascii=False) + "\n"
+    return json.dumps(payload, indent=indent, ensure_ascii=False, sort_keys=False) + "\n"
 
 
 def format_markdown(report: ArchitectureReport) -> str:
     """Markdown table suitable for inclusion in a paper/report."""
     lines: list[str] = []
-    lines.append(f"# BlindSpotCheck report — `{report.domain}`")
+    lines.append(f"# BlindSpotCheck report --- `{report.domain}`")
     lines.append("")
     if report.source_standards:
         lines.append(
             "**Source standards:** " + ", ".join(f"`{s}`" for s in report.source_standards)
         )
         lines.append("")
-    lines.append("| Conduit | NC-1 | NC-2 | NC-3 | Verdict | Rationale |")
+    lines.append("| Conduit | SC-1 | NC-1 | NC-2 | Verdict | Rationale |")
     lines.append("|---------|------|------|------|---------|-----------|")
     for r in report.results:
         lines.append(
-            f"| `{r.conduit_id}` | {_nc(r.nc1)} | {_nc(r.nc2)} | {_nc(r.nc3)} "
+            f"| `{r.conduit_id}` | {_nc(r.sc1)} | {_nc(r.nc1)} | {_nc(r.nc2)} "
             f"| **{r.verdict.value}** | {_md_escape(r.rationale)} |"
         )
     lines.append("")
@@ -98,7 +98,7 @@ def format_markdown(report: ArchitectureReport) -> str:
     lines.append("")
 
     if report.blind_spots():
-        lines.append("## Blind spots — mitigation options")
+        lines.append("## Blind spots --- mitigation options")
         lines.append("")
         for r in report.blind_spots():
             lines.append(f"### `{r.conduit_id}`")

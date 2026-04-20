@@ -34,7 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="blindspotcheck",
         description=(
-            "Evaluate IEC 62443 NC-1 AND NC-2 AND NC-3 biconditional on a "
+            "Evaluate IEC 62443 SC-1 AND NC-1 AND NC-2 biconditional on a "
             "multi-tenant architecture YAML. Reports which conduits are "
             "structural monitoring blind spots."
         ),

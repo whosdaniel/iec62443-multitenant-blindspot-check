@@ -30,10 +30,10 @@ Each entry:
 | Key | Type | Required | Notes |
 |-----|------|----------|-------|
 | `id` | string, pattern `^[A-Za-z][A-Za-z0-9_-]{0,63}$` | yes | |
-| `role` | enum: `AO`, `SP`, `integrator`, `product_supplier` | yes | only `AO` and `SP` are evaluated by NC-1/NC-2/NC-3 |
+| `role` | enum: `AO`, `SP`, `integrator`, `product_supplier` | yes | only `AO` and `SP` are evaluated by SC-1/NC-1/NC-2 |
 | `description` | string | no | |
 
-Only endpoints whose owner has `role: AO` are considered "co-equal asset owners" for NC-2. Other roles (`integrator`, `product_supplier`) are treated as not-AO; conduits touching them will not satisfy NC-2.
+Only endpoints whose owner has `role: AO` are considered "co-equal asset owners" for NC-1. Other roles (`integrator`, `product_supplier`) are treated as not-AO; conduits touching them will not satisfy NC-1.
 
 ## `sp_relations`
 
@@ -45,20 +45,20 @@ Each entry declares a service-provider-to-asset-owner relationship per IEC 62443
 | `ao` | string | yes | id of the AO party |
 | `scope` | array of conduit ids | no | if omitted, the relation covers **every** conduit whose endpoints match the `(sp, ao)` pair |
 
-If a conduit is covered by any SP-AO relation, NC-2 is FALSE for that conduit.
+If a conduit is covered by any SP-AO relation, NC-1 is FALSE for that conduit.
 
 ## `zone_authorities`
 
-Each entry declares which organisation designates a given zone (IEC 62443-3-2 ZCR-1, Clauses 4.3.1-4.3.3):
+Each entry declares which organisation designates a given zone (IEC 62443-3-2:2020 ZCR 3 Clause 4.4):
 
 | Key | Type | Required | Notes |
 |-----|------|----------|-------|
 | `zone` | string | yes | referenced by conduit endpoints |
 | `org` | string | yes | must match an `asset_owners` id |
 
-If a conduit's two endpoints lie in zones designated by the **same** organisation, NC-3 is FALSE.
+If a conduit's two endpoints lie in zones designated by the **same** organisation, NC-2 is FALSE.
 
-If the conduit's endpoints don't declare `zone`, NC-3 falls back to NC-1 parity (distinct owners → distinct partitioning assumed).
+If the conduit's endpoints don't declare `zone`, NC-2 falls back to SC-1 parity (distinct owners -> distinct partitioning assumed).
 
 ## `conduits`
 
@@ -77,7 +77,7 @@ Each entry:
 | Key | Type | Required | Notes |
 |-----|------|----------|-------|
 | `owner` | string | yes | must match an `asset_owners` id |
-| `zone` | string | no | referenced by `zone_authorities` for NC-3 evaluation |
+| `zone` | string | no | referenced by `zone_authorities` for NC-2 evaluation |
 | `asset` | string | no | free-text asset label |
 
 ## Full-featured example
@@ -88,8 +88,8 @@ See [`examples/airport-common-use-terminal.yaml`](../examples/airport-common-use
 
 1. List the asset owners (AO) in your fabric.
 2. List SP-AO relationships. A relation without `scope:` covers every conduit between that pair.
-3. List zone authorities if zones matter for NC-3 (optional but recommended).
-4. Enumerate conduits. An "conduit" is any cross-zone traffic flow you care about monitoring.
+3. List zone authorities if zones matter for NC-2 (optional but recommended).
+4. Enumerate conduits. A "conduit" is any cross-zone traffic flow you care about monitoring.
 5. Run `blindspotcheck your-file.yaml` and inspect the distribution.
 
 **SSI / abstraction rule (for shipped samples):** every YAML intended for public release must carry `meta.source.standards` (citing the public documents it derives from) and `meta.disclaimer` (asserting abstraction). Do NOT embed real operator names, IP ranges, VLAN IDs, or vendor product IDs. Use role labels (APT, ALN-A, VND, IM, TOC-*, PortAuth, etc.).
