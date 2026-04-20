@@ -16,11 +16,22 @@ for any conduit `c` in an IEC 62443-governed architecture. The paper shows that 
 
 | | Source | Encoded as |
 |---|---|---|
-| **SC-1** | IEC 62443-2-1:2024 Clause 3.1.2 (Asset Owner definition) | the two endpoints of the conduit belong to distinct asset owners (the conduit crosses an asset-owner boundary) |
-| **NC-1** | IEC 62443-2-4:2023 Clauses 3.1.12 (integration SP), 3.1.13 (maintenance SP), SP.08.02 BR (SP-AO log-sharing) | no SP-AO relationship covers the conduit, AND both endpoint owners have role `AO` (neither is a service provider under 62443-2-4) |
-| **NC-2** | IEC 62443-3-2:2020 ZCR 3 Clause 4.4 (zone/conduit methodology; in particular ZCR 3.1 Clause 4.4.2) | the two endpoint zones are designated by distinct organisations (no single organisation partitions both endpoints) |
+| **SC-1** | IEC 62443-2-1:2024 Clause 3.1.2 (Asset Owner definition); IATA RP 1797 Application Provider; IEC 62443-2-4:2023 Cl. 3.1.12 / 3.1.13 commissioning AO; OpenID Connect Core 1.0 §2 / RFC 6749 issuer | Cross-AO exposure exists on the conduit, either because the endpoint asset owners differ, or because an artefact produced by a third asset owner transits the conduit. Either disjunct satisfies SC-1. |
+| **NC-1** | IEC 62443-2-4:2023 Clauses 3.1.12 (integration SP), 3.1.13 (maintenance SP), SP.08.02 BR (SP-AO log-sharing) | No SP-AO relationship covers the conduit, AND both endpoint owners have role `AO` (neither is a service provider under 62443-2-4). Scoped to the endpoint AO pair per paper §4.1, not to the transit artefact owner. |
+| **NC-2** | IEC 62443-3-2:2020 ZCR 3 Clause 4.4 (zone/conduit methodology; in particular ZCR 3.1 Clause 4.4.2) | The two endpoint zones are designated by distinct organisations (no single organisation partitions both endpoints). On multi-tenant endpoints the designating authority is read per tenant session context, not per physical VLAN. |
 
 SC-1 is the scope condition - it decides whether the biconditional applies at all. NC-1 and NC-2 are the two necessary conditions whose conjunction, given SC-1, is equivalent to a blind spot.
+
+### Transit artefact ownership (W. Kim 2026 paper §3 four-context rule)
+
+When a conduit carries an artefact whose producer is a non-endpoint asset owner, the artefact's owner decides whether SC-1's first disjunct fires. The rule assigns one owner per transit artefact across four contexts present in the airport testbed:
+
+1. **IATA RP 1797 passenger session data** - the airline Application Provider is the owner of PNR records, passport MRZ data, boarding-pass and session state.
+2. **IEC 62443-2-4 commissioning AO for SP-supplied software** - vendor middleware, agents, or configuration pushed under a maintenance agreement become assets of the commissioning AO upon handover (per Clauses 3.1.12 / 3.1.13).
+3. **OpenID Connect Core 1.0 §2 / RFC 6749 federated identity** - a federated identity assertion retains the issuer's ownership even while traversing an IDP operated by a different organisation.
+4. **Intra-tenant operational traffic** - for telemetry, PLC control, building-management events, and firmware updates whose source and sink live inside a single AO's infrastructure, the originating AO is the transit-artefact owner by construction.
+
+The evaluator reads the per-conduit `transit_owner` field (optional in `architecture-v1.json`); when absent, it defaults to `from.owner` so pre-BATCH-8 YAML keeps evaluating with the legacy endpoint-only SC-1.
 
 ## Verdict matrix
 
@@ -29,17 +40,24 @@ SC-1 is the scope condition - it decides whether the biconditional applies at al
 | Y | Y | Y | `blind-spot` | Structural monitoring blind spot. |
 | Y | Y | - | `borderline` | Cross-AO, uncovered, but a single org bridges the zones. Easy to slide into a blind spot if governance splits. |
 | Y | - | * | `resolved-by-sp` | An SP-AO relationship covers the conduit; IEC 62443-2-4 log-sharing obligations apply. |
-| - | * | * | `no-cross-ao` | Same-owner endpoints. Not a multi-tenant conduit. |
+| - | * | * | `no-cross-ao` | Same-owner endpoints with no cross-AO transit artefact. Not a multi-tenant conduit. |
 
 ## Evaluation algorithm (pseudocode)
 
 ```python
 for conduit c in architecture.conduits:
     a, b = c.from.owner, c.to.owner
-    sc1 = (a != b)
+    t = c.transit_owner if "transit_owner" in c else a
 
-    if not sc1:
-        nc1 = False
+    # SC-1 (2-disjunct form, paper §4 BATCH 8):
+    #   D1 fires when a cross-AO artefact transits c
+    #   D2 fires when the endpoint AOs differ
+    sc1 = (t not in {a, b}) or (a != b)
+
+    if a == b:
+        # NC-1 reduces to "that AO is independent" when endpoints coincide;
+        # no bilateral SP relationship is possible between a single org and itself.
+        nc1 = (roles[a] == "AO")
     else:
         covered = any(sp-ao relation covers (a, b, c.id))
         both_aos = roles[a] == "AO" and roles[b] == "AO"
@@ -48,10 +66,12 @@ for conduit c in architecture.conduits:
     if zones declared:
         nc2 = zone_org[c.from.zone] != zone_org[c.to.zone]
     else:
-        nc2 = sc1  # fallback
+        nc2 = (a != b)  # fallback: endpoint-AO difference approximation
 
     verdict = classify(sc1, nc1, nc2)
 ```
+
+The per-row trace of SC-1's two disjuncts across the airport testbed's 19 in-scope conduits plus the excluded CD-12 is locked by `tests/test_samples.py::test_airport_sample_matches_paper_appendix_d` against the values tabulated in paper Appendix D.1.
 
 ## Design choices
 
@@ -61,7 +81,7 @@ for conduit c in architecture.conduits:
 
 **Schema-first.** A JSON-Schema (Draft 2020-12) file lives next to the Python code and is the contract. `blindspotcheck --schema` emits it. Downstream tools can validate independently.
 
-**Conservative NC-2 fallback.** When zones are not declared, the evaluator assumes distinct owners imply distinct partitioning authorities (NC-2 = SC-1). This is conservative: it tends to classify ambiguous conduits as blind-spots rather than borderline, which is the safer direction for a monitoring-gap audit.
+**Endpoint-AO NC-2 fallback.** When zones are not declared, the evaluator uses `from.owner != to.owner` as an NC-2 approximation. The common case - each asset owner designating its own zones - preserves the right verdict. This fallback replaces an earlier `nc2 = sc1` rule that briefly diverged once SC-1 gained its transit-artefact disjunct.
 
 ## Serialisation surfaces
 

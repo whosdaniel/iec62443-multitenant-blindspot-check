@@ -11,6 +11,43 @@ This release adds a browser canvas interface alongside the original
 CLI. The Python evaluator stays authoritative; the browser evaluator
 is a line-for-line port verified by cross-language parity tests.
 
+### BATCH 8 alignment with paper §4 (2-disjunct SC-1)
+- SC-1 is now a 2-disjunct predicate per W. Kim (2026) paper §4
+  BATCH 8: either the endpoint asset owners differ, or an artefact
+  produced by a third asset owner transits the conduit. Earlier
+  releases evaluated only the endpoint-AO disjunct; the transit
+  disjunct catches multi-tenant structural patterns (ALN session
+  traffic on APT-owned CUPPS infrastructure, VND-issued federated
+  identity claims through APT IDP/DMZ) without needing the author to
+  fold the artefact owner into `from.owner`.
+- NC-1's same-endpoint-AO branch no longer hard-fails. Paper §4.1
+  scopes NC-1 to the endpoint AO pair only; when endpoints coincide
+  NC-1 reduces to `is_ao(endpoint_owner)`, so a conduit that fires
+  SC-1 via the transit disjunct can still hold NC-1.
+- `architecture-v1` schema gains optional `transit_owner` and
+  `transit_asset` conduit fields. Pre-BATCH-8 YAML loads unchanged;
+  `transit_owner` defaults to `from.owner`.
+- Airport sample (`examples/airport-common-use-terminal.yaml`):
+  - CD-05 canonicalised to the paper-canonical federation outbound
+    leg (IDP -> DMZ) with `transit_owner: VND`. The prior
+    per-airline inbound encoding (ALN-C -> IDP) is dropped from the
+    canvas.
+  - CD-06 / CD-08a / CD-08b switched to strict IEC 62443-2-1 Cl. 3.1.2
+    HW-governance endpoint AOs with `transit_owner` carrying the
+    session owner; verdicts unchanged.
+  - CD-01 / CD-04 / CD-09 gain explicit `transit_owner` per the
+    four-context artefact-ownership rule of paper §3.
+- Canvas template (`web/templates.js`): mirrors the YAML updates and
+  records `transitOwner` / `transitAsset` on each edge for round-trip
+  through save/load, evaluator, and YAML export. The orphan
+  `aln-c-fed` node and `VLAN-IDP-Fed-ALN` zone (required only by the
+  old CD-05 inbound encoding) are removed.
+- New regression: `tests/test_samples.py::test_airport_sample_matches_paper_appendix_d`
+  asserts every in-scope conduit's `(T(c), AO(e1), AO(e2), D1, D2, SC-1)`
+  tuple against paper Appendix D.1 exactly.
+- `docs/design.md` and `docs/yaml-schema.md` rewritten to cover the
+  4-context transit-artefact rule and the 2-disjunct SC-1 form.
+
 ### Added
 #### Browser canvas (`web/`)
 - Interactive canvas (Cytoscape.js 3.33.2 vendored; MIT; SHA-256 pinned

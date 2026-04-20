@@ -58,7 +58,7 @@ Each entry declares which organisation designates a given zone (IEC 62443-3-2:20
 
 If a conduit's two endpoints lie in zones designated by the **same** organisation, NC-2 is FALSE.
 
-If the conduit's endpoints don't declare `zone`, NC-2 falls back to SC-1 parity (distinct owners -> distinct partitioning assumed).
+If the conduit's endpoints don't declare `zone`, NC-2 falls back to an endpoint-AO difference (`from.owner != to.owner`). The common case - each asset owner designating its own zones - preserves the right verdict.
 
 ## `conduits`
 
@@ -70,6 +70,8 @@ Each entry:
 | `description` | string | no | |
 | `from` | endpoint | yes | see below |
 | `to` | endpoint | yes | see below |
+| `transit_owner` | string, pattern `^[A-Za-z][A-Za-z0-9_-]{0,63}$` | no | Asset owner id of the artefact traversing the conduit, per the four-context artefact-ownership rule of W. Kim (2026) paper §3 (IATA RP 1797 AP for passenger session data; IEC 62443-2-4 commissioning AO for SP-supplied code; OIDC issuer for federated identity; originating AO for intra-tenant operational traffic). When absent, the evaluator defaults `transit_owner` to `from.owner`, collapsing SC-1's first disjunct and preserving pre-BATCH-8 behaviour on legacy YAML. Supplying `transit_owner` is required to fire SC-1's first disjunct on a conduit whose two endpoints share an asset owner (e.g. ALN session traffic transiting APT-owned CUPPS infrastructure). |
+| `transit_asset` | string, max 200 chars | no | Free-text label describing the transiting artefact (e.g. `"ALN DCS session heartbeat"`, `"VND-issued federated identity claim"`). Documentation only; not evaluated. |
 | `notes` | string | no | free-form commentary |
 
 ### Endpoint
