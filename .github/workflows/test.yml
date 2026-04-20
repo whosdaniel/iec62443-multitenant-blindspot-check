@@ -53,9 +53,43 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
-      - name: bandit — Python security linter
+      - name: bandit - Python security linter
         run: bandit -r blindspotcheck -ll
 
-      - name: pip-audit — dependency CVE scan
+      - name: pip-audit - dependency CVE scan
         # pip-audit fails on known vulnerabilities in transitive deps.
         run: pip-audit
+
+  js-test:
+    # Runs the JS evaluator unit tests (node:test) against the same
+    # fixtures used by the Python parity tests. The Python-side parity
+    # suite (tests/test_parity.py) re-runs these via subprocess.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+
+      # actions/setup-node v4.0.4
+      - name: Set up Node
+        uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6
+        with:
+          node-version: "20"
+
+      - name: Run JS unit tests
+        run: |
+          node --test \
+            tests/web/test_evaluator.mjs \
+            tests/web/test_templates.mjs \
+            tests/web/test_history.mjs \
+            tests/web/test_yaml_export.mjs \
+            tests/web/test_persistence.mjs \
+            tests/web/test_serialize.mjs
+
+      - name: JS parse-check all web modules
+        # Catches syntax regressions in the browser-only modules (which
+        # cannot be imported into Node because they touch document/window).
+        run: |
+          for f in web/*.js; do
+            echo "--- node --check $f"
+            node --check "$f"
+          done

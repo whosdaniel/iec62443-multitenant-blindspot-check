@@ -1,0 +1,44 @@
+# Dependency Review: on every pull request, check that no newly-introduced
+# or upgraded dependency carries a known vulnerability, and that licences
+# of new deps are compatible with the project's MIT license.
+#
+# Fails the PR (and blocks merge when branch protection requires this check)
+# if any dep has severity >= moderate, or carries a disallowed licence.
+
+name: dependency-review
+
+on:
+  pull_request:
+    branches: [ main ]
+
+# Least-privilege: the action reads the PR diff. No write access needed.
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      # actions/checkout v4.1.7
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+
+      # actions/dependency-review-action v4.3.4
+      - name: Dependency Review
+        uses: actions/dependency-review-action@5a2ce3f5b92ee19cbb1541a4984c76d675cf4f3a
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: on-failure
+          # Allow MIT + common permissive licences compatible with this project.
+          allow-licenses: >-
+            MIT,
+            Apache-2.0,
+            BSD-2-Clause,
+            BSD-3-Clause,
+            ISC,
+            Python-2.0,
+            PSF-2.0,
+            Unlicense,
+            CC0-1.0,
+            0BSD

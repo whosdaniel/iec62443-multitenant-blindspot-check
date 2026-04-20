@@ -4,8 +4,7 @@ message: "If you use this software, please cite it as below."
 type: software
 authors:
   - family-names: Kim
-    given-names: Woowi
-    name-suffix: Danny
+    given-names: "W."
     email: kimyngwie1@gmail.com
     orcid: "https://orcid.org/0009-0001-9503-7214"
     affiliation: "Independent Researcher"
@@ -21,8 +20,8 @@ keywords:
   - monitoring blind spot
   - airport security
 abstract: >
-  BlindSpotCheck evaluates the NC-1 AND NC-2 AND NC-3 biconditional from
-  Kim (2026) "Compliant Yet Blind" against an arbitrary multi-tenant
+  BlindSpotCheck evaluates the SC-1 AND NC-1 AND NC-2 biconditional from
+  W. Kim (2026) "Compliant Yet Blind" against an arbitrary multi-tenant
   IEC 62443-governed architecture described in YAML. It classifies each
   conduit as blind-spot, borderline, resolved-by-SP, or no-cross-AO and
   emits a per-conduit mitigation path.
@@ -30,8 +29,7 @@ preferred-citation:
   type: article
   authors:
     - family-names: Kim
-      given-names: Woowi
-      name-suffix: Danny
+      given-names: "W."
   title: "Compliant Yet Blind: Measuring and Closing Multi-Tenant Monitoring Gaps in IEC 62443"
   year: 2026
   journal: "International Journal of Critical Infrastructure Protection (submitted)"
@@ -40,7 +38,6 @@ references:
     title: "Compliant Yet Blind: Multi-Tenant Testbed"
     authors:
       - family-names: Kim
-        given-names: Woowi
-        name-suffix: Danny
-    doi: "10.5281/zenodo.19617578"
+        given-names: "W."
+    doi: "10.5281/zenodo.19627489"
     year: 2026

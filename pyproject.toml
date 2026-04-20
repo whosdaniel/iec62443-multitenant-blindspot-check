@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "blindspotcheck"
 version = "0.1.0"
-description = "IEC 62443 NC-1/NC-2/NC-3 multi-tenant monitoring blind-spot evaluator"
+description = "IEC 62443 SC-1/NC-1/NC-2 multi-tenant monitoring blind-spot evaluator"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-    { name = "Woowi (Danny) Kim", email = "kimyngwie1@gmail.com" }
+    { name = "W. Kim", email = "kimyngwie1@gmail.com" }
 ]
 keywords = ["iec62443", "cybersecurity", "ot-security", "multi-tenant", "airport-security"]
 classifiers = [
@@ -43,7 +43,7 @@ blindspotcheck = "blindspotcheck.cli:main"
 [project.urls]
 Homepage = "https://github.com/whosdaniel/iec62443-multitenant-blindspot-check"
 Issues = "https://github.com/whosdaniel/iec62443-multitenant-blindspot-check/issues"
-Paper = "https://doi.org/10.5281/zenodo.19617578"
+Paper = "https://doi.org/10.5281/zenodo.19627489"
 
 [tool.setuptools.packages.find]
 include = ["blindspotcheck*"]
