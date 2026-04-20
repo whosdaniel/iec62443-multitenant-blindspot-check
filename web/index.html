@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <!--
+    Strict Content-Security-Policy: no external fetches, no inline scripts,
+    no objects, no framing. Keeps the tool air-gap-safe and reduces XSS
+    blast radius if a future feature ever trusts user-controlled text.
+
+    style-src-elem pins the exact SHA-256 of Cytoscape's one injected
+    <style> element (content: ".__________cytoscape_container { position:
+    relative; }"). That constant is baked into cytoscape.min.js, so the
+    hash is stable across loads. See web/vendor/README.md for the
+    verification procedure.
+
+    style-src-attr allows the small number of element-level style="..."
+    attributes the app sets (e.g. error banner visibility toggles).
+  -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src-elem 'self' 'sha256-pgvDUBa4IjFA2yuSJ2cqcyxmNYJMborsd0ORcRv9vw8='; style-src-attr 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; font-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; object-src 'none';">
+  <title>BlindSpotCheck - Canvas</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header role="banner" class="app-header">
+    <h1 class="app-title">BlindSpotCheck</h1>
+    <div class="app-subtitle">Multi-tenant monitoring blind-spot canvas</div>
+    <div class="muted" style="margin-left: auto;">
+      Evaluator runs locally in your browser. No network, no telemetry.
+    </div>
+  </header>
+
+  <!-- File bar: save / load / undo / redo / autosave toggle. -->
+  <div class="file-bar" role="toolbar" aria-label="File actions">
+    <span class="file-name" aria-live="polite">
+      <span id="title-filename">untitled</span><span id="dirty-marker" class="dirty-marker" aria-label="Unsaved changes"></span>
+    </span>
+    <span class="toolbar-divider" aria-hidden="true"></span>
+    <button id="btn-new"     type="button" aria-label="New architecture (discards current)">New</button>
+    <button id="btn-load"    type="button" aria-label="Load architecture from file">Load...</button>
+    <button id="btn-save"    type="button" aria-label="Save to file">Save</button>
+    <button id="btn-save-as" type="button" aria-label="Save with a new filename">Save as...</button>
+    <span class="toolbar-divider" aria-hidden="true"></span>
+    <button id="btn-undo" type="button" aria-label="Undo (Ctrl/Cmd+Z)" disabled>Undo</button>
+    <button id="btn-redo" type="button" aria-label="Redo (Ctrl/Cmd+Shift+Z)" disabled>Redo</button>
+    <span class="toolbar-divider" aria-hidden="true"></span>
+    <button id="btn-export-yaml" type="button" aria-label="Export as architecture YAML (Python CLI compatible)">Export YAML</button>
+    <button id="btn-export-pdf"  type="button" aria-label="Print or save as PDF via browser print dialog">Export PDF</button>
+    <span class="toolbar-divider" aria-hidden="true"></span>
+    <label class="autosave-toggle">
+      <input id="toggle-autosave" type="checkbox">
+      <span>Auto-save every 30s (to this browser)</span>
+    </label>
+    <input id="file-input" type="file" accept=".blindspot.json,.json,application/json" style="display:none">
+    <span class="file-spacer"></span>
+    <button id="btn-help" type="button" aria-label="Keyboard shortcuts and help">Help</button>
+  </div>
+
+  <!-- Evidence banner: changes class on template load (measured / analytic / custom). -->
+  <div id="evidence-banner" class="evidence-banner evidence-custom" role="status" aria-live="polite">
+    <strong id="evidence-title">Custom architecture</strong>
+    <span id="evidence-detail" class="evidence-detail">Draw freely, or load a template to start.</span>
+    <span class="evidence-spacer"></span>
+    <button id="btn-templates" type="button" class="btn-secondary" aria-label="Load a starter template" aria-haspopup="dialog">Load template...</button>
+  </div>
+
+  <main class="app-shell" role="main">
+    <aside class="panel panel-left" aria-label="Owner library">
+      <h2>Owners</h2>
+      <p class="muted">Drag a chip onto a node to assign an owner. A node can carry multiple chips (multi-tenant).</p>
+      <div id="chip-library" class="chip-library" role="list"></div>
+      <button id="btn-add-chip" class="btn-secondary" type="button">+ Add owner</button>
+    </aside>
+
+    <section class="canvas-area" aria-labelledby="canvas-heading">
+      <h2 id="canvas-heading" class="visually-hidden">Canvas</h2>
+      <div class="toolbar" role="toolbar" aria-label="Canvas tools">
+        <button id="btn-add-node"  type="button" aria-pressed="false" aria-label="Add node mode">+ Node</button>
+        <button id="btn-connect"   type="button" aria-pressed="false" aria-label="Connect edges mode">Connect</button>
+        <button id="btn-zone"      type="button" aria-label="Group selected nodes into a zone">Group as Zone</button>
+        <span class="toolbar-divider" aria-hidden="true"></span>
+        <button id="btn-fit"       type="button" aria-label="Fit canvas to view">Fit</button>
+        <button id="btn-delete"    type="button" aria-label="Delete selected items">Delete</button>
+        <span class="toolbar-divider" aria-hidden="true"></span>
+        <span id="summary" class="summary-pill" aria-live="polite" aria-label="Verdict summary">-</span>
+        <span id="status" class="status" aria-live="polite" role="status">Ready.</span>
+      </div>
+      <div id="cy" class="cy-canvas" role="application" aria-label="Architecture canvas" tabindex="0"></div>
+      <div class="verdict-legend" aria-label="Verdict and node legend">
+        <strong class="legend-heading">Edges</strong>
+        <span class="legend-item"><span class="legend-swatch swatch-blind-spot" aria-hidden="true"></span>blind spot</span>
+        <span class="legend-item"><span class="legend-swatch swatch-borderline" aria-hidden="true"></span>borderline</span>
+        <span class="legend-item"><span class="legend-swatch swatch-resolved-by-sp" aria-hidden="true"></span>resolved by SP</span>
+        <span class="legend-item"><span class="legend-swatch swatch-no-cross-ao" aria-hidden="true"></span>no cross-AO</span>
+        <span class="legend-item"><span class="legend-swatch swatch-incomplete" aria-hidden="true"></span>incomplete</span>
+        <span class="legend-divider" aria-hidden="true"></span>
+        <strong class="legend-heading">Nodes</strong>
+        <span class="legend-item"><span class="legend-swatch swatch-single-owner" aria-hidden="true"></span>single owner</span>
+        <span class="legend-item"><span class="legend-swatch swatch-multi-tenant" aria-hidden="true"></span>multi-tenant (owner stripes + double border)</span>
+        <span class="legend-item"><span class="legend-swatch swatch-has-notes" aria-hidden="true"></span>has notes (gold border)</span>
+        <span class="legend-item"><span class="legend-context" aria-hidden="true">[ctx]</span>role context (display only, not in YAML)</span>
+      </div>
+    </section>
+
+    <aside class="panel panel-right" aria-label="Properties">
+      <h2>Properties</h2>
+      <div id="properties" class="properties">
+        <div class="empty-state">Select a node, edge, or zone to inspect.</div>
+      </div>
+    </aside>
+  </main>
+
+  <!--
+    Hidden print view. Filled and shown on "Export PDF"; the print
+    stylesheet hides every other sibling of <body> so only this block
+    reaches paper/PDF.
+  -->
+  <div id="print-view" hidden aria-hidden="true">
+    <header class="print-header">
+      <h1>BlindSpotCheck report</h1>
+      <div class="print-meta">
+        <div><strong>Architecture:</strong> <span id="print-name"></span></div>
+        <div><strong>Evidence level:</strong> <span id="print-evidence"></span></div>
+        <div><strong>Domain:</strong> <span id="print-domain"></span></div>
+        <div><strong>Source:</strong> <span id="print-source"></span></div>
+        <div><strong>Generated:</strong> <span id="print-time"></span></div>
+        <div><strong>Architecture SHA-256:</strong> <code id="print-hash"></code></div>
+        <div id="print-review-row" hidden><strong>Signed-off by:</strong> <span id="print-reviewer"></span> <span id="print-reviewed-on" class="muted"></span></div>
+      </div>
+    </header>
+    <section class="avoid-break">
+      <h2>Architecture</h2>
+      <img id="print-canvas-img" alt="Canvas snapshot">
+    </section>
+    <section class="avoid-break">
+      <h2>Verdict summary</h2>
+      <table id="print-summary-table">
+        <thead><tr><th>Verdict</th><th>Count</th></tr></thead>
+        <tbody id="print-summary-body"></tbody>
+      </table>
+    </section>
+    <section id="print-prerequisites-section" class="avoid-break" hidden>
+      <h2>Measurement prerequisites</h2>
+      <div class="print-meta">
+        Upgrade path from analytic-hypothesis to measured evidence. Paper §8.3 future work.
+      </div>
+      <ul id="print-prerequisites-list"></ul>
+    </section>
+    <section>
+      <h2>Per-conduit verdicts</h2>
+      <table id="print-verdicts-table">
+        <thead>
+          <tr>
+            <th>Conduit</th><th>Dir.</th><th>SC-1</th><th>NC-1</th><th>NC-2</th>
+            <th>Verdict</th><th>Rationale</th>
+          </tr>
+        </thead>
+        <tbody id="print-verdicts-body"></tbody>
+      </table>
+    </section>
+    <section class="avoid-break">
+      <h2>Applicable clauses per verdict</h2>
+      <dl id="print-clause-glossary"></dl>
+    </section>
+    <footer class="print-footer">
+      BlindSpotCheck - IEC 62443 multi-tenant monitoring blind-spot evaluator.
+      MIT-licensed. This report documents the evaluator's output on the inputs
+      shown; it does not make or imply any compliance claim.
+    </footer>
+  </div>
+
+  <!-- Cytoscape.js 3.33.2 (UMD). Loaded from web/vendor/ - offline, SHA-256 pinned. -->
+  <script src="vendor/cytoscape.min.js"></script>
+  <!-- Application modules (ES modules, type=module required for import). -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>

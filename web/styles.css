@@ -1,0 +1,1106 @@
+/* BlindSpotCheck canvas UI - vanilla CSS.
+ * No external fonts, no external images. System font stack only.
+ * Color contrast meets WCAG 2.1 AA (4.5:1) for all text/background pairs.
+ */
+
+/* Explicit light-only scheme. Dark-mode support is intentionally out
+ * of scope for this release (the Cytoscape canvas uses hardcoded
+ * white text halo and dark glyph fill that would clash in dark mode).
+ * Declaring `only light` tells user agents not to invert colours
+ * automatically (UX agent 5 A11Y-18). */
+:root { color-scheme: only light; }
+
+/* Visually-hidden utility for section landmarks (aria-labelledby h2s)
+ * that carry semantics to assistive tech without visual clutter. */
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+:root {
+  --font-system: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
+
+  --color-bg: #f7fafc;
+  --color-bg-panel: #ffffff;
+  --color-bg-canvas: #fbfcfd;
+  --color-border: #cbd5e0;
+  --color-border-strong: #718096;
+  --color-text: #1a202c;
+  --color-text-muted: #4a5568;
+  --color-primary: #2b6cb0;
+  --color-primary-hover: #2c5282;
+  --color-accent: #3182ce;
+  --color-danger: #c53030;
+  --color-warning-bg: #fffaf0;
+  --color-warning-border: #dd6b20;
+
+  --shadow-panel: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  /* Chip palette (color-blind safe, warm/cool split).
+   * Each color paired with a darker border used in node visuals.
+   */
+  --chip-APT-bg: #ecc94b;        --chip-APT-border: #975a16;
+  --chip-ALN-bg: #38b2ac;        --chip-ALN-border: #234e52;
+  /* Per-airline tenants: use three DIFFERENT hue families (teal/blue/
+   * magenta) so the 3-tenant CUPPS Workstation remains legible for
+   * users with deuteranopia and protanopia, where three teal shades
+   * collapse into one cyan-grey wash (UX agents 1/3/5 F-03/P5). */
+  --chip-ALN-A-bg: #319795;      --chip-ALN-A-border: #234e52;
+  --chip-ALN-B-bg: #4299e1;      --chip-ALN-B-border: #1e4e8c;
+  --chip-ALN-C-bg: #d53f8c;      --chip-ALN-C-border: #702459;
+  --chip-VND-bg: #9f7aea;        --chip-VND-border: #553c9a;
+  --chip-IM-bg:  #48bb78;        --chip-IM-border:  #22543d;
+  --chip-TOC-bg: #ed8936;        --chip-TOC-border: #7b341e;
+  --chip-SSV-bg: #667eea;        --chip-SSV-border: #2a4365;
+  --chip-PORT-bg: #ed64a6;       --chip-PORT-border: #702459;
+  --chip-TERM-bg: #4299e1;       --chip-TERM-border: #2a4365;
+  --chip-SHIP-bg: #e53e3e;       --chip-SHIP-border: #742a2a;
+  --chip-TSO-bg: #805ad5;        --chip-TSO-border: #44337a;
+  --chip-DSO-bg: #f6ad55;        --chip-DSO-border: #7b341e;
+  --chip-IPP-bg: #a0aec0;        --chip-IPP-border: #2d3748;
+  --chip-CUSTOM-bg: #cbd5e0;     --chip-CUSTOM-border: #4a5568;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: var(--font-system);
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+h1, h2, h3 {
+  margin: 0;
+  font-weight: 600;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+/* ---------- Focus ring: visible, matches WCAG 2.2 AA ---------- */
+:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------- Layout ---------- */
+.app-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 10px 20px;
+  background: var(--color-bg-panel);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-panel);
+  position: relative;
+  z-index: 2;
+}
+
+.app-title {
+  font-size: 16px;
+  letter-spacing: 0.5px;
+}
+
+.app-subtitle {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 220px 1fr 280px;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0;
+}
+
+/* Narrow-width fallbacks so the canvas stays usable on laptops / split
+ * windows. At 1100px the side panels shrink; below 960px the Properties
+ * panel hides because the chip library + canvas + toolbar take priority
+ * for a drawing-first UX. Users can still inspect verdicts via the
+ * status pill and via the PDF export.
+ */
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 200px 1fr 260px;
+  }
+}
+
+@media (max-width: 960px) {
+  .app-shell {
+    grid-template-columns: 180px 1fr;
+  }
+  .panel-right {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+  .panel-left {
+    display: none;
+  }
+}
+
+.panel {
+  background: var(--color-bg-panel);
+  overflow-y: auto;
+  padding: 14px 16px;
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel-right {
+  border-right: none;
+  border-left: 1px solid var(--color-border);
+}
+
+.panel h2 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--color-text-muted);
+  margin: 0 0 4px 0;
+}
+
+.canvas-area {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* ---------- Toolbar ---------- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--color-bg-panel);
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+.toolbar button {
+  background: var(--color-bg-panel);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+  transition: background-color 80ms linear, border-color 80ms linear;
+}
+
+.toolbar button:hover {
+  background: #edf2f7;
+  border-color: var(--color-border-strong);
+}
+
+.toolbar button[aria-pressed="true"] {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+}
+
+.toolbar button[aria-pressed="true"]:hover {
+  background: var(--color-primary-hover);
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--color-border);
+  margin: 0 4px;
+}
+
+.status {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  margin-left: auto;
+  padding-left: 8px;
+}
+
+/* ---------- Canvas ---------- */
+.cy-canvas {
+  flex: 1;
+  background: var(--color-bg-canvas);
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.cy-canvas.mode-add-node {
+  cursor: crosshair;
+}
+
+.cy-canvas.mode-connect {
+  cursor: cell;
+}
+
+/* ---------- Chip library ---------- */
+.chip-library {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border);
+  font-size: 12px;
+  cursor: grab;
+  user-select: none;
+}
+
+.chip:active {
+  cursor: grabbing;
+}
+
+.chip[draggable="true"]:hover {
+  border-color: var(--color-border-strong);
+}
+
+.chip-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  flex-shrink: 0;
+}
+
+.chip-label {
+  flex: 1;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip-role {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.btn-secondary {
+  background: var(--color-bg-panel);
+  border: 1px dashed var(--color-border-strong);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.btn-secondary:hover {
+  background: #edf2f7;
+  color: var(--color-text);
+}
+
+.btn-danger {
+  background: var(--color-danger);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.btn-danger:hover {
+  background: #9b2c2c;
+}
+
+/* ---------- Properties panel ---------- */
+.properties {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.properties .empty-state {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.properties label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+}
+
+.properties input[type="text"],
+.properties textarea,
+.properties select {
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-panel);
+  color: var(--color-text);
+}
+
+.properties textarea {
+  min-height: 70px;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.properties .owner-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.properties .owner-list .chip {
+  cursor: default;
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.properties .owner-list .chip button {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  padding: 0 2px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.properties .owner-list .chip button:hover {
+  color: var(--color-danger);
+}
+
+/* ---------- Context menu ---------- */
+.context-menu {
+  position: absolute;
+  z-index: 1000;
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 4px 0;
+  min-width: 150px;
+  font-size: 13px;
+}
+
+.context-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.context-menu li button {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 6px 14px;
+  text-align: left;
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.context-menu li button:hover,
+.context-menu li button:focus {
+  background: #edf2f7;
+  outline: none;
+}
+
+.context-menu li.separator {
+  height: 1px;
+  background: var(--color-border);
+  margin: 4px 0;
+}
+
+/* ---------- Modal (custom chip editor, dialogs) ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 32, 44, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal {
+  background: var(--color-bg-panel);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  min-width: 320px;
+  max-width: 460px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal h3 {
+  font-size: 15px;
+  margin: 0;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.modal-actions button {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-panel);
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.modal-actions button.primary {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+}
+
+.modal-actions button.primary:hover {
+  background: var(--color-primary-hover);
+}
+
+/* ---------- Help/footer tone ---------- */
+.muted {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.section-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--color-text-muted);
+  margin-top: 8px;
+}
+
+/* Segmented-control (arrow direction, etc.) */
+.direction-row { margin-top: 8px; }
+.seg-group {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.seg-btn {
+  padding: 4px 10px;
+  background: var(--color-bg-panel);
+  border: 0;
+  border-right: 1px solid var(--color-border);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--color-text);
+  min-width: 32px;
+  line-height: 1.5;
+}
+.seg-btn:last-child { border-right: 0; }
+.seg-btn:hover { background: var(--color-bg); }
+.seg-btn-active {
+  background: var(--color-accent, #3182ce);
+  color: white;
+  font-weight: 600;
+}
+.seg-btn-active:hover { background: var(--color-accent, #3182ce); }
+
+/* ---------- Evidence banner (Stage D) ---------- */
+.evidence-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.evidence-banner strong {
+  font-weight: 600;
+}
+
+.evidence-detail {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.evidence-spacer {
+  flex: 1 1 auto;
+}
+
+.evidence-measured {
+  background: #f0fff4;
+  border-bottom-color: #9ae6b4;
+  color: #22543d;
+}
+
+.evidence-measured strong { color: #276749; }
+
+.evidence-analytic {
+  background: var(--color-warning-bg);
+  border-bottom-color: #fbd38d;
+  color: #744210;
+}
+
+.evidence-analytic strong { color: #975a16; }
+
+.evidence-custom {
+  background: #edf2f7;
+  border-left: 4px solid var(--color-border);
+  border-bottom-color: var(--color-border);
+  color: var(--color-text);
+}
+
+/* ---------- Summary pill + verdict legend ---------- */
+.summary-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #edf2f7;
+  color: var(--color-text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+
+.summary-pill .count {
+  font-weight: 600;
+}
+
+.summary-pill .count-blind { color: #c53030; }
+.summary-pill .count-border { color: #dd6b20; }
+.summary-pill .count-resolved { color: #2f855a; }
+.summary-pill .count-nocross { color: #2d3748; }  /* ~10:1 on #edf2f7 */
+.summary-pill .count-skipped { color: #4a5568; font-style: italic; }  /* ~7:1 */
+
+.verdict-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 6px 14px;
+  background: var(--color-bg-panel);
+  border-top: 1px solid var(--color-border);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 26px;
+  height: 2px;
+  border-radius: 1px;
+  background: #a0aec0;
+  position: relative;
+}
+
+.swatch-blind-spot  { background: #c53030; height: 3px; }
+.swatch-borderline {
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg, #dd6b20 0, #dd6b20 4px, transparent 4px, transparent 8px
+  );
+}
+.swatch-resolved-by-sp {
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg, #2f855a 0, #2f855a 18px, transparent 18px, transparent 22px
+  );
+}
+.swatch-no-cross-ao {
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg, #a0aec0 0, #a0aec0 2px, transparent 2px, transparent 4px
+  );
+}
+.swatch-incomplete {
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg, #cbd5e0 0, #cbd5e0 5px, transparent 5px, transparent 10px
+  );
+}
+
+/* --- Node-shape swatches (legend row 2; UX H2) --- */
+.legend-heading {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--color-text-muted);
+  align-self: center;
+}
+.legend-divider {
+  display: inline-block;
+  width: 1px;
+  align-self: stretch;
+  background: var(--color-border);
+  margin: 0 6px;
+}
+.swatch-single-owner,
+.swatch-multi-tenant,
+.swatch-has-notes {
+  width: 18px;
+  height: 14px;
+  border-radius: 3px;
+  background: #ecc94b;
+  border: 2px solid #975a16;
+}
+.swatch-multi-tenant {
+  border-style: double;
+  border-width: 4px;
+  background:
+    linear-gradient(90deg, #ecc94b 0 50%, #319795 50% 100%);
+}
+.swatch-has-notes {
+  border-color: #d69e2e;
+  border-width: 3px;
+}
+.legend-context {
+  display: inline-block;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  color: #2d3748;
+  padding: 1px 5px;
+  border: 1px dashed var(--color-border);
+  border-radius: 3px;
+  background: #fffaf0;
+}
+
+/* ---------- Verdict chip inside properties panel ---------- */
+.verdict-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.verdict-chip.verdict-blind-spot    { background: #fed7d7; color: #742a2a; }
+.verdict-chip.verdict-borderline    { background: #feebc8; color: #7b341e; }
+.verdict-chip.verdict-resolved-by-sp { background: #c6f6d5; color: #22543d; }
+.verdict-chip.verdict-no-cross-ao   { background: #e2e8f0; color: #2d3748; }
+.verdict-chip.verdict-incomplete    { background: #edf2f7; color: #4a5568; }
+
+.nc-flags {
+  display: flex;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.nc-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #edf2f7;
+  color: var(--color-text);
+}
+
+.nc-flag.flag-true { background: #fed7d7; color: #742a2a; }
+
+.mitigation-list {
+  font-size: 12px;
+  padding-left: 18px;
+  margin: 4px 0 0 0;
+}
+
+.mitigation-list li {
+  margin-bottom: 4px;
+}
+
+/* ---------- Template modal gallery ---------- */
+.template-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.template-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-panel);
+  cursor: pointer;
+  text-align: left;
+}
+
+.template-card:hover,
+.template-card:focus {
+  border-color: var(--color-primary);
+  background: #ebf8ff;
+  outline: none;
+}
+
+.template-card-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.template-card-meta {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.template-card-desc {
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.template-card[data-evidence="measured"]  { border-left: 4px solid #38a169; }
+.template-card[data-evidence="analytic-hypothesis"] { border-left: 4px solid #dd6b20; }
+.template-card[data-evidence="custom"]    { border-left: 4px solid #a0aec0; }
+
+/* ---------- Notes textarea + SSI caption ---------- */
+.properties .notes-row textarea {
+  min-height: 60px;
+}
+
+.properties .notes-row .ssi-warning {
+  margin-top: 4px;
+  padding: 6px 8px;
+  background: #fff5f5;
+  border-left: 3px solid var(--color-danger);
+  color: #742a2a;
+  font-size: 11px;
+  line-height: 1.4;
+  border-radius: 0 4px 4px 0;
+}
+
+.properties .zone-clause {
+  margin: 4px 0;
+  padding: 6px 8px;
+  background: #f0fff4;
+  border-left: 3px solid #38a169;
+  color: #22543d;
+  font-size: 11px;
+  line-height: 1.4;
+  border-radius: 0 4px 4px 0;
+}
+
+/* ---------- File bar (Stage E) ---------- */
+.file-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px 16px;
+  background: var(--color-bg-panel);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.file-bar button {
+  background: var(--color-bg-panel);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 12px;
+  transition: background-color 80ms linear, border-color 80ms linear;
+}
+
+.file-bar button:hover:not(:disabled) {
+  background: #edf2f7;
+  border-color: var(--color-border-strong);
+}
+
+.file-bar button:disabled {
+  color: var(--color-border-strong);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.file-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text);
+  padding: 4px 10px;
+  background: #edf2f7;
+  border-radius: var(--radius-sm);
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dirty-marker {
+  color: var(--color-warning-border);
+  font-weight: 700;
+  min-width: 8px;
+}
+
+.file-spacer {
+  flex: 1 1 auto;
+}
+
+.autosave-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.autosave-toggle input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.autosave-toggle:hover {
+  background: #edf2f7;
+  color: var(--color-text);
+}
+
+/* ---------- Help modal ---------- */
+.help-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 16px;
+  row-gap: 6px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.help-list.help-list-wide {
+  grid-template-columns: 170px 1fr;
+}
+
+.help-list dt {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: #edf2f7;
+  color: var(--color-text);
+  padding: 2px 8px;
+  border-radius: 3px;
+  justify-self: start;
+  align-self: start;
+}
+
+.help-list.help-list-wide dt {
+  font-family: var(--font-system);
+  font-weight: 600;
+  background: transparent;
+  padding: 0;
+}
+
+.help-list dd {
+  margin: 0;
+  color: var(--color-text);
+  line-height: 1.45;
+}
+
+.help-section {
+  margin-top: 12px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.help-heading {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 8px 0 4px 0;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.help-para {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+/* The Help modal packs a lot; give its body a scrollable window so it
+ * doesn't exceed the viewport on short screens. */
+.modal-body {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* ---------- Print view (Stage F, Export PDF) ---------- */
+
+/* The print view is assembled just before window.print(); the [hidden]
+ * attribute keeps it off-screen in the normal app. Print CSS below flips
+ * visibility for paper/PDF only.
+ */
+#print-view[hidden] { display: none !important; }
+
+@page {
+  size: A4 portrait;
+  margin: 18mm 16mm;
+}
+
+@media print {
+  html, body {
+    background: #ffffff !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+  body { display: block !important; }
+
+  /* Hide the live UI; only the print-view reaches paper. */
+  body > *:not(#print-view) { display: none !important; }
+
+  #print-view {
+    display: block !important;
+    color: #000;
+    background: #fff;
+    font-family: var(--font-system);
+    font-size: 10pt;
+    line-height: 1.4;
+  }
+  #print-view h1 {
+    font-size: 16pt;
+    margin: 0 0 6pt 0;
+  }
+  #print-view h2 {
+    font-size: 12pt;
+    margin: 10pt 0 4pt 0;
+    border-bottom: 1px solid #888;
+    padding-bottom: 2pt;
+  }
+  #print-view .print-header { margin-bottom: 8pt; }
+  #print-view .print-meta {
+    font-size: 9pt;
+    color: #333;
+    line-height: 1.5;
+  }
+  #print-view .print-meta > div { margin-bottom: 1pt; }
+  #print-view code {
+    font-family: var(--font-mono);
+    font-size: 8pt;
+    word-break: break-all;
+  }
+  #print-view img {
+    display: block;
+    max-width: 100%;
+    max-height: 11cm;
+    object-fit: contain;
+    border: 1px solid #bbb;
+    margin-top: 4pt;
+  }
+  #print-view table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 4pt 0;
+  }
+  #print-view th, #print-view td {
+    border: 1px solid #888;
+    padding: 3pt 5pt;
+    font-size: 9pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  #print-view th { background: #eee; font-weight: 600; }
+  #print-view .print-footer {
+    font-size: 8pt;
+    color: #444;
+    margin-top: 14pt;
+    border-top: 1px solid #888;
+    padding-top: 3pt;
+  }
+  #print-clause-glossary {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    column-gap: 10pt;
+    row-gap: 3pt;
+    margin: 0;
+    font-size: 8.5pt;
+    line-height: 1.35;
+  }
+  #print-clause-glossary dt {
+    font-weight: 600;
+    justify-self: start;
+  }
+  #print-clause-glossary dd {
+    margin: 0;
+  }
+  .avoid-break { break-inside: avoid; page-break-inside: avoid; }
+
+  /* Browser-default print chrome (URL, date) stays as-is; most browsers
+   * expose toggles for that in their print dialog.
+   */
+}
