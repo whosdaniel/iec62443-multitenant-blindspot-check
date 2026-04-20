@@ -159,21 +159,32 @@ def _evaluate_conduit(
     to_owner = c["to"]["owner"]
     from_zone = c["from"].get("zone")
     to_zone = c["to"].get("zone")
+    # transit_owner: artefact ownership per paper §3 four-context rule.
+    # Defaults to from_owner when absent (pre-BATCH-8 YAML compatibility).
+    transit_owner = c.get("transit_owner") or from_owner
 
-    # SC-1 (scope condition): endpoints belong to distinct asset owners.
-    sc1 = from_owner != to_owner
+    # SC-1 (scope condition) per paper §4 BATCH 8 2-disjunct formulation:
+    #   D1: a cross-AO artefact transits c (owner(a) ∉ {AO(e1), AO(e2)})
+    #   D2: endpoint AOs differ (AO(e1) ≠ AO(e2))
+    # SC-1 = D1 ∨ D2. When transit_owner is omitted it collapses to from_owner,
+    # so D1 is guaranteed False and D2 drives the result (legacy behaviour).
+    sc1_transit = transit_owner not in {from_owner, to_owner}
+    sc1_endpoint = from_owner != to_owner
+    sc1 = sc1_transit or sc1_endpoint
 
     # Helper: is `owner` an asset-owner role in this architecture?
     def is_ao(owner_id: str) -> bool:
         return role_by_id.get(owner_id) == "AO"
 
-    # NC-1 (role-typing): no SP-AO relationship bridges the conduit, AND both
-    # endpoint owners are independent asset owners (not an SP of the other).
-    # A covering relationship = one owner is SP, the other is AO, and either
-    # (a) explicit scope includes this conduit id, or (b) no explicit scope.
-    if not sc1:
-        # Same-owner conduit: NC-1 is trivially not satisfied (single-AO).
-        nc1 = False
+    # NC-1 (role-typing) per paper §4.1: no SP-AO relationship between the
+    # two endpoint asset owners, AND both are independent asset owners.
+    # Scope: paper §4.1 explicitly limits NC-1 to the endpoint AO pair, not
+    # to the transit artefact owner, so a cross-AO artefact fires SC-1 via
+    # D1 while NC-1 can still hold when endpoints share an AO (CD-05, CD-06).
+    if from_owner == to_owner:
+        # No bilateral SP possible between a single org and itself; NC-1
+        # reduces to "that AO is an independent asset owner".
+        nc1 = is_ao(from_owner)
     else:
         bilateral_covered = (
             _covers(sp_relations, sp=from_owner, ao=to_owner, cid=conduit_id)
@@ -182,10 +193,10 @@ def _evaluate_conduit(
         both_aos = is_ao(from_owner) and is_ao(to_owner)
         nc1 = (not bilateral_covered) and both_aos
 
-    # NC-2 (governance): no single organisation controls (designates the zones
-    # at) both endpoints. If zones aren't declared, we fall back conservatively:
-    # "no single org bridges" is equivalent to "ownership of the endpoints is
-    # already split" which is SC-1.
+    # NC-2 (governance): no single organisation designates the zones at both
+    # endpoints. When zones aren't declared we fall back to the endpoint-AO
+    # difference (approximates the zone-designator split in the common case
+    # where each AO designates its own zones).
     if from_zone and to_zone and zone_org:
         from_org = zone_org.get(from_zone)
         to_org = zone_org.get(to_zone)
@@ -196,8 +207,8 @@ def _evaluate_conduit(
         else:
             nc2 = from_org != to_org
     else:
-        # No zone metadata: treat as "same-owner => one org, distinct owners => distinct orgs".
-        nc2 = sc1
+        # No zone metadata: approximate via endpoint-AO difference.
+        nc2 = from_owner != to_owner
 
     verdict, mitigation, rationale = _classify(sc1, nc1, nc2)
     return NCResult(

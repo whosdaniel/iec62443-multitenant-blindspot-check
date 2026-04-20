@@ -120,18 +120,30 @@ function evaluateConduit(c, roleById, spRelations, zoneOrg) {
   const toOwner = c.to.owner;
   const fromZone = c.from.zone;
   const toZone = c.to.zone;
+  // transit_owner: artefact ownership per paper §3 four-context rule.
+  // Defaults to fromOwner when absent (pre-BATCH-8 YAML compatibility).
+  const transitOwner = c.transit_owner || fromOwner;
 
-  // SC-1 (scope): endpoints belong to distinct asset owners.
-  const sc1 = fromOwner !== toOwner;
+  // SC-1 per paper §4 BATCH 8 2-disjunct formulation:
+  //   D1: a cross-AO artefact transits c (owner(a) not in {AO(e1), AO(e2)})
+  //   D2: endpoint AOs differ (AO(e1) !== AO(e2))
+  // SC-1 = D1 or D2. When transit_owner is omitted it collapses to fromOwner,
+  // so D1 is guaranteed false and D2 drives the result (legacy behaviour).
+  const sc1Transit = transitOwner !== fromOwner && transitOwner !== toOwner;
+  const sc1Endpoint = fromOwner !== toOwner;
+  const sc1 = sc1Transit || sc1Endpoint;
 
   const isAo = (ownerId) => roleById[ownerId] === 'AO';
 
-  // NC-1 (role-typing): no SP-AO relationship covers this conduit AND both
-  // endpoint owners are independent asset owners (not SPs of each other).
+  // NC-1 per paper §4.1: no SP-AO relationship between the endpoint AOs,
+  // AND both endpoints are independent asset owners. Scoped to the endpoint
+  // AO pair, not to the transit artefact owner (so CD-05 / CD-06 style
+  // cases fire SC-1 via D1 while NC-1 still holds when endpoints coincide).
   let nc1;
-  if (!sc1) {
-    // Same-owner conduit: NC-1 is trivially not satisfied (single-AO).
-    nc1 = false;
+  if (fromOwner === toOwner) {
+    // No bilateral SP possible between a single org and itself; NC-1
+    // reduces to "that AO is an independent asset owner".
+    nc1 = isAo(fromOwner);
   } else {
     const bilateralCovered =
       covers(spRelations, fromOwner, toOwner, conduitId) ||
@@ -141,7 +153,9 @@ function evaluateConduit(c, roleById, spRelations, zoneOrg) {
   }
 
   // NC-2 (governance): no single organisation designates the zones at both
-  // endpoints. Falls back to SC-1 parity when no zone metadata is present.
+  // endpoints. Falls back to endpoint-AO difference when no zone metadata
+  // is present (approximates the common case of each AO designating its own
+  // zones).
   let nc2;
   const hasZoneMeta = fromZone && toZone && Object.keys(zoneOrg).length > 0;
   if (hasZoneMeta) {
@@ -154,7 +168,7 @@ function evaluateConduit(c, roleById, spRelations, zoneOrg) {
       nc2 = fromOrg !== toOrg;
     }
   } else {
-    nc2 = sc1;
+    nc2 = fromOwner !== toOwner;
   }
 
   const { verdict, mitigation, rationale } = classify(sc1, nc1, nc2);
