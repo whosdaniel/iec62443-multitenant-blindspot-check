@@ -93,11 +93,22 @@ export function canvasToArchitecture(canvas, library) {
     const srcZone = srcZoneRaw && declaredZones.has(srcZoneRaw) ? srcZoneRaw : null;
     const tgtZone = tgtZoneRaw && declaredZones.has(tgtZoneRaw) ? tgtZoneRaw : null;
 
-    conduits.push({
+    const conduit = {
       id: e.id(),
       from: srcZone ? { owner: srcOwner, zone: srcZone } : { owner: srcOwner },
       to:   tgtZone ? { owner: tgtOwner, zone: tgtZone } : { owner: tgtOwner },
-    });
+    };
+    // Paper §3 transit artefact owner (BATCH 8). Only emit when present
+    // and non-redundant; evaluator falls back to from.owner when absent.
+    const transitOwner = e.data('transitOwner');
+    if (typeof transitOwner === 'string' && transitOwner.length > 0) {
+      conduit.transit_owner = transitOwner;
+    }
+    const transitAsset = e.data('transitAsset');
+    if (typeof transitAsset === 'string' && transitAsset.length > 0) {
+      conduit.transit_asset = transitAsset;
+    }
+    conduits.push(conduit);
 
     if (e.data('spCovered')) {
       const entry = { sp: srcOwner, ao: tgtOwner, scope: [e.id()] };
@@ -169,6 +180,9 @@ export function canvasToFullArchitecture(canvas, library) {
       from: c.from,
       to: c.to,
     };
+    // Preserve transit_owner / transit_asset emitted by canvasToArchitecture.
+    if (c.transit_owner) enriched.transit_owner = c.transit_owner;
+    if (c.transit_asset) enriched.transit_asset = c.transit_asset;
     if (!edge.empty()) {
       const label = edge.data('label');
       if (label && label !== c.id) enriched.description = label;
@@ -268,11 +282,18 @@ export function snapshotToArchitecture(snapshot, library) {
     const sZone = src.parent && declaredZones.has(src.parent) ? src.parent : null;
     const tZone = tgt.parent && declaredZones.has(tgt.parent) ? tgt.parent : null;
 
-    conduits.push({
+    const conduit = {
       id: e.id,
       from: sZone ? { owner: srcOwner, zone: sZone } : { owner: srcOwner },
       to:   tZone ? { owner: tgtOwner, zone: tZone } : { owner: tgtOwner },
-    });
+    };
+    if (typeof e.transitOwner === 'string' && e.transitOwner.length > 0) {
+      conduit.transit_owner = e.transitOwner;
+    }
+    if (typeof e.transitAsset === 'string' && e.transitAsset.length > 0) {
+      conduit.transit_asset = e.transitAsset;
+    }
+    conduits.push(conduit);
 
     if (e.spCovered) {
       const entry = { sp: srcOwner, ao: tgtOwner, scope: [e.id] };
@@ -403,6 +424,12 @@ export function loadTemplateIntoCanvas(template, canvas, library) {
     }
     if (typeof e.targetOwner === 'string' && e.targetOwner.length > 0) {
       data.targetOwner = e.targetOwner;
+    }
+    if (typeof e.transitOwner === 'string' && e.transitOwner.length > 0) {
+      data.transitOwner = e.transitOwner;
+    }
+    if (typeof e.transitAsset === 'string' && e.transitAsset.length > 0) {
+      data.transitAsset = e.transitAsset;
     }
     // Bezier control points: one or more (perpendicular distance,
     // weight) pairs along the source-to-target line. Templates use

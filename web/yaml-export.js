@@ -91,6 +91,12 @@ function emitConduit(c, indent) {
   }
   out.push(`${inner}from: ${flowMap(c.from)}`);
   out.push(`${inner}to:   ${flowMap(c.to)}`);
+  if (c.transit_owner !== undefined && c.transit_owner !== null && c.transit_owner !== '') {
+    out.push(`${inner}transit_owner: ${qstr(c.transit_owner)}`);
+  }
+  if (c.transit_asset !== undefined && c.transit_asset !== null && c.transit_asset !== '') {
+    out.push(`${inner}transit_asset: ${qstr(c.transit_asset)}`);
+  }
   if (c.notes !== undefined && c.notes !== null && c.notes !== '') {
     out.push(`${inner}notes: ${qstr(c.notes)}`);
   }

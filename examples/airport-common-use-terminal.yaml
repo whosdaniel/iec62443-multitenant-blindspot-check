@@ -86,12 +86,16 @@ conduits:
     description: "VND Cloud to DMZ - vendor config push"
     from: { owner: VND, zone: VLAN-VND-Cloud, asset: "Vendor cloud platform" }
     to:   { owner: APT, zone: VLAN-DMZ,       asset: "DMZ config relay" }
+    transit_owner: VND
+    transit_asset: "Vendor-authored configuration bundle in transit (pre-commissioning)"
     notes: "VND is SP to APT per IEC 62443-2-4 SP.08.02 BR; obligations flow via the SP-AO contract."
 
   - id: CD-09
     description: "VND Cloud to CUPPS middleware management plane"
     from: { owner: VND, zone: VLAN-VND-Cloud, asset: "Vendor cloud platform" }
     to:   { owner: APT, zone: VLAN-VND-MW,    asset: "CUPPS middleware (APT-owned HW, VND-operated)" }
+    transit_owner: APT
+    transit_asset: "Management-plane traffic against APT-commissioned middleware (IEC 62443-2-4 Cl. 3.1.13)"
     notes: "VND is SP to APT for middleware management; covered under sp_relations."
 
   # -------------------------------------------------------------------------
@@ -141,13 +145,17 @@ conduits:
     description: "VND Cloud to airport IDP via federation"
     from: { owner: VND, zone: VLAN-IDP-Fed-VND, asset: "Vendor OIDC client" }
     to:   { owner: APT, zone: VLAN-IDP,         asset: "IDP federation endpoint" }
+    transit_owner: VND
+    transit_asset: "Vendor-authored OIDC authentication request (RFC 6749)"
     notes: "Federation trust under single IDP operator (APT designates both zones); borderline until airport/vendor split into independent IDP operators."
 
   - id: CD-05
-    description: "Airline federation client to airport IDP"
-    from: { owner: ALN-C, zone: VLAN-IDP-Fed-ALN, asset: "Airline OIDC client" }
-    to:   { owner: APT,   zone: VLAN-IDP,         asset: "IDP federation endpoint" }
-    notes: "Same federation pattern as CD-04; borderline under single-IDP-operator assumption."
+    description: "Airport IDP to DMZ - federated identity outbound (paper Table 3 canonical leg)"
+    from: { owner: APT, zone: VLAN-IDP, asset: "IDP federation endpoint (APT)" }
+    to:   { owner: APT, zone: VLAN-DMZ, asset: "DMZ relying service (APT)" }
+    transit_owner: VND
+    transit_asset: "VND-issued federated identity assertion (OpenID Connect Core 1.0 §2)"
+    notes: "VND-issued federated identity claim traverses APT-operated IDP and DMZ. Paper §4 canonical leg of the federation flow; NC-2 fails because APT designates both endpoint zones. Borderline until the VND-side IDP is operated by an independent organisation."
 
   # -------------------------------------------------------------------------
   # Structural blind spots (3): CD-06 (latent), CD-08a (active), CD-08b (active)
@@ -155,21 +163,27 @@ conduits:
   # -------------------------------------------------------------------------
   - id: CD-06
     description: "CUPPS workstation to IDF switch - latent cross-tenant leakage"
-    from: { owner: ALN-B, zone: VLAN-ALN-B, asset: "Tenant session VLAN context" }
-    to:   { owner: APT,   zone: VLAN-IDF,   asset: "IDF switch (APT-designated)" }
-    notes: "APT designates the switch zone; airline DCS session traffic traverses it. LATENT: under correct VLAN configuration no cross-tenant traffic flows, but zero safety margin if the VLAN boundary degrades through misconfiguration or firmware regression."
+    from: { owner: APT, zone: VLAN-ALN-B, asset: "CUPPS Workstation (APT HW, ALN-B tenant session context)" }
+    to:   { owner: APT, zone: VLAN-IDF,   asset: "IDF switch (APT HW)" }
+    transit_owner: ALN-B
+    transit_asset: "ALN-B DCS session traffic transiting APT-owned infrastructure (IATA RP 1797 AP)"
+    notes: "APT HW at both endpoints; ALN-B-owned DCS traffic transits (SC-1 D1). ALN-B designates the tenant session zone context, APT designates the switch zone, so NC-2 holds. LATENT: under correct VLAN configuration no cross-tenant traffic flows, but zero safety margin if the VLAN boundary degrades through misconfiguration or firmware regression."
 
   - id: CD-08a
     description: "CUPPS workstation to middleware - 3-tenant session heartbeat"
-    from: { owner: ALN-A, zone: VLAN-IDF,    asset: "CUPPS thin client (3-tenant coexistence)" }
-    to:   { owner: VND,   zone: VLAN-VND-MW, asset: "CUPPS middleware" }
-    notes: "ACTIVE: traffic flows whenever an airline session is open. Three-tenant workstation coexistence on a single thin client; each airline is an independent AO."
+    from: { owner: APT, zone: VLAN-IDF,    asset: "CUPPS Workstation (APT HW, 3-tenant session coexistence)" }
+    to:   { owner: APT, zone: VLAN-VND-MW, asset: "CUPPS middleware (APT HW, VND-operated)" }
+    transit_owner: ALN-A
+    transit_asset: "ALN-A DCS session heartbeat (IATA RP 1797 AP-owned)"
+    notes: "ACTIVE: traffic flows whenever an airline session is open. APT HW at both endpoints but ALN-A session state transits (SC-1 D1). APT designates the WS zone, VND designates the MW operational zone - NC-2 holds. Three-tenant workstation coexistence; each airline is an independent AO."
 
   - id: CD-08b
     description: "Middleware to airline DCS session-update (PP/AP boundary)"
-    from: { owner: VND,   zone: VLAN-VND-MW, asset: "CUPPS middleware" }
-    to:   { owner: ALN-A, zone: VLAN-ALN-A,  asset: "Airline DCS" }
-    notes: "ACTIVE: PP/AP seam per IATA RP 1797. Airline is independent Application Provider, not SP to airport or vendor - IEC 62443-2-4 is inapplicable to this conduit."
+    from: { owner: APT,   zone: VLAN-VND-MW, asset: "CUPPS middleware (APT HW, VND-operated)" }
+    to:   { owner: ALN-A, zone: VLAN-ALN-A,  asset: "Airline DCS (ALN HW)" }
+    transit_owner: ALN-A
+    transit_asset: "ALN-A DCS session update crossing the PP/AP seam (IATA RP 1797)"
+    notes: "ACTIVE: PP/AP seam per IATA RP 1797. Endpoints cross asset-owner boundary (APT MW HW to ALN DCS) and ALN owns the session artefact. Airline is independent Application Provider, not SP to airport or vendor - IEC 62443-2-4 is inapplicable to this conduit."
 
   # -------------------------------------------------------------------------
   # Single-tenant internal (7): CD-20 .. CD-26

@@ -53,11 +53,18 @@ function templateToArch(template) {
     const tgtOwner = e.targetOwner && tgtOwners.includes(e.targetOwner) ? e.targetOwner : tgtOwners[0];
     const sZone = src.parent && declaredZones.has(src.parent) ? src.parent : null;
     const tZone = tgt.parent && declaredZones.has(tgt.parent) ? tgt.parent : null;
-    conduits.push({
+    const conduit = {
       id: e.id,
       from: sZone ? { owner: srcOwner, zone: sZone } : { owner: srcOwner },
       to:   tZone ? { owner: tgtOwner, zone: tZone } : { owner: tgtOwner },
-    });
+    };
+    if (typeof e.transitOwner === 'string' && e.transitOwner.length > 0) {
+      conduit.transit_owner = e.transitOwner;
+    }
+    if (typeof e.transitAsset === 'string' && e.transitAsset.length > 0) {
+      conduit.transit_asset = e.transitAsset;
+    }
+    conduits.push(conduit);
     if (e.spCovered) {
       sp_relations.push({ sp: srcOwner, ao: tgtOwner, scope: [e.id] });
     }

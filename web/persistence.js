@@ -94,6 +94,10 @@ export function canvasToSnapshot(canvas, library) {
     const to = e.data('targetOwner');
     if (typeof so === 'string' && so.length > 0) snap.sourceOwner = so;
     if (typeof to === 'string' && to.length > 0) snap.targetOwner = to;
+    const tro = e.data('transitOwner');
+    const tra = e.data('transitAsset');
+    if (typeof tro === 'string' && tro.length > 0) snap.transitOwner = tro;
+    if (typeof tra === 'string' && tra.length > 0) snap.transitAsset = tra;
     const sf = e.data('sourceFace');
     const tf = e.data('targetFace');
     if (typeof sf === 'string' && sf.length > 0) snap.sourceFace = sf;
@@ -381,6 +385,16 @@ export function validateSnapshot(snap) {
     }
     if (e.targetOwner !== undefined && e.targetOwner !== null) {
       assertId(e.targetOwner, `edge '${e.id}'.targetOwner`);
+    }
+    if (e.transitOwner !== undefined && e.transitOwner !== null) {
+      assertId(e.transitOwner, `edge '${e.id}'.transitOwner`);
+    }
+    if (e.transitAsset !== undefined && e.transitAsset !== null) {
+      if (typeof e.transitAsset !== 'string' || e.transitAsset.length > 200) {
+        throw new SaveFileError(
+          `edge '${e.id}'.transitAsset must be a string of length <= 200`,
+        );
+      }
     }
     const FACES = ['top', 'bottom', 'left', 'right'];
     if (e.sourceFace !== undefined && e.sourceFace !== null) {

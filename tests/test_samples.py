@@ -95,6 +95,63 @@ def test_airport_sample_reproduces_paper_table3() -> None:
     assert sum(dist.values()) == 19
 
 
+def test_airport_sample_matches_paper_appendix_d() -> None:
+    """
+    Per-row SC-1 disjunct trace against W. Kim (2026) Paper Appendix D.1.
+
+    For every in-scope conduit the airport YAML must declare the same
+    (T(c) owner, AO(e1), AO(e2), D1-fires, D2-fires, SC-1) tuple that
+    paper Appendix D.1 records. The airport YAML is the authoritative
+    BATCH 8 Table 3 reproduction; the canvas template exercises the
+    same verdicts under a simplified encoding per §8.3.
+    """
+    arch = load_architecture_from_path(EXAMPLES / "airport-common-use-terminal.yaml")
+    conduits_by_id = {c["id"]: c for c in arch["conduits"]}
+
+    # Expected tuples per paper Appendix D.1 (p.70).
+    expected = {
+        # cd_id    :  (T(c) owner, AO(e1), AO(e2), D1, D2, SC-1)
+        "CD-01":     ("VND", "VND", "APT", False, True,  True),
+        "CD-02":     ("APT", "APT", "APT", False, False, False),
+        "CD-03":     ("APT", "APT", "APT", False, False, False),
+        "CD-04":     ("VND", "VND", "APT", False, True,  True),
+        "CD-05":     ("VND", "APT", "APT", True,  False, True),
+        "CD-06":     ("ALN-B", "APT", "APT", True,  False, True),
+        "CD-07":     ("APT", "APT", "APT", False, False, False),
+        "CD-08a":    ("ALN-A", "APT", "APT", True,  False, True),
+        "CD-08b":    ("ALN-A", "APT", "ALN-A", False, True,  True),
+        "CD-09":     ("APT", "VND", "APT", False, True,  True),
+        "CD-10":     ("APT", "APT", "APT", False, False, False),
+        "CD-11":     ("APT", "APT", "APT", False, False, False),
+        "CD-20":     ("APT", "APT", "APT", False, False, False),
+        "CD-21":     ("APT", "APT", "APT", False, False, False),
+        "CD-22":     ("APT", "APT", "APT", False, False, False),
+        "CD-23":     ("APT", "APT", "APT", False, False, False),
+        "CD-24":     ("ALN-A", "ALN-A", "ALN-A", False, False, False),
+        "CD-25":     ("APT", "APT", "APT", False, False, False),
+        "CD-26":     ("APT", "APT", "APT", False, False, False),
+    }
+
+    for cid, exp in expected.items():
+        assert cid in conduits_by_id, f"{cid} missing from airport YAML"
+        c = conduits_by_id[cid]
+        transit_owner = c.get("transit_owner") or c["from"]["owner"]
+        ao_from = c["from"]["owner"]
+        ao_to = c["to"]["owner"]
+        d1 = transit_owner not in {ao_from, ao_to}
+        d2 = ao_from != ao_to
+        sc1 = d1 or d2
+
+        actual = (transit_owner, ao_from, ao_to, d1, d2, sc1)
+        assert actual == exp, (
+            f"{cid} SC-1 trace mismatch:\n"
+            f"  expected: T={exp[0]}, AO=({exp[1]},{exp[2]}), "
+            f"D1={exp[3]}, D2={exp[4]}, SC-1={exp[5]}\n"
+            f"  actual:   T={actual[0]}, AO=({actual[1]},{actual[2]}), "
+            f"D1={actual[3]}, D2={actual[4]}, SC-1={actual[5]}"
+        )
+
+
 def test_all_samples_declare_source_standards() -> None:
     """Every shipped example must cite its derivation source."""
     for yaml_file in EXAMPLES.glob("*.yaml"):

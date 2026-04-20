@@ -57,7 +57,6 @@ export const TEMPLATES = {
     // zone metadata (paper §4; evaluator.py::_evaluate_conduit).
     zones: [
       { id: 'VLAN-IDP-Fed-VND', label: 'Fed-VND (APT)', authority: 'APT' },
-      { id: 'VLAN-IDP-Fed-ALN', label: 'Fed-ALN (APT)', authority: 'APT' },
       { id: 'VLAN-IDP',         label: 'IDP (APT)',     authority: 'APT' },
     ],
     // Fig 2 node positions: 4 columns (A BHS-lane, B CUPPS-center,
@@ -87,7 +86,6 @@ export const TEMPLATES = {
       // aln-c-fed sits in col C so CD-05 is a visible diagonal into
       // IDP at col B without crossing the vertical CD-09 backbone.
       { id: 'vnd-fed',         label: 'VND OIDC client',   owners: ['VND'],   roleContext: 'VND (federation client)',   parent: 'VLAN-IDP-Fed-VND', x: 560,  y: 280 },
-      { id: 'aln-c-fed',       label: 'ALN-C OIDC',        owners: ['ALN-C'], roleContext: 'ALN-C (federation client)', parent: 'VLAN-IDP-Fed-ALN', x: 920,  y: 280 },
 
       // --- L4 (enterprise tier) -------------------------------------------
       { id: 'airport-it',      label: 'Airport IT',        owners: ['APT'],   roleContext: 'APT (FIDS/AODB)',           x: 200,  y: 540 },
@@ -126,19 +124,28 @@ export const TEMPLATES = {
       // curve further east to clear Airport IT's right edge. User can
       // drag the endpoint handles to move them along either node's
       // boundary, and the bend handle to change the curve radius.
-      { id: 'CD-01',  source: 'vnd-cloud-bhs',   target: 'dmz-jump',    sourceOwner: 'VND',   targetOwner: 'APT',   spCovered: true, directed: true,
+      { id: 'CD-01',  source: 'vnd-cloud-bhs',   target: 'dmz-jump',    sourceOwner: 'VND',   targetOwner: 'APT',   transitOwner: 'VND',
+        transitAsset: 'Vendor-authored configuration bundle in transit',
+        spCovered: true, directed: true,
         sourceFace: 'right', targetFace: 'right',
         controlPointDistances: [-160],
         controlPointWeights:   [0.5],
         notes: 'VND is SP to APT per IEC 62443-2-4 SP.08.02 BR - obligations flow via the SP-AO contract.' },
-      { id: 'CD-09',  source: 'vnd-cloud-cupps', target: 'cupps-mw',    sourceOwner: 'VND',   targetOwner: 'APT',   spCovered: true, directed: true,
+      { id: 'CD-09',  source: 'vnd-cloud-cupps', target: 'cupps-mw',    sourceOwner: 'VND',   targetOwner: 'APT',   transitOwner: 'APT',
+        transitAsset: 'Management-plane traffic against APT-commissioned middleware',
+        spCovered: true, directed: true,
         notes: 'Covered by VND -> APT SP-AO scope; management-plane for CUPPS MW.' },
 
-      // Borderline (2): federation trust under single-IDP-operator (CD-04, CD-05)
-      { id: 'CD-04',  source: 'vnd-fed',         target: 'idp',         sourceOwner: 'VND',   targetOwner: 'APT',   directed: true,
-        notes: 'Federation trust: APT designates both Fed-VND and IDP zones (NC-2 fails). Transitions to blind-spot if airport/vendor move to independent IdPs.' },
-      { id: 'CD-05',  source: 'aln-c-fed',       target: 'idp',         sourceOwner: 'ALN-C', targetOwner: 'APT',   directed: true,
-        notes: 'Same federation pattern as CD-04; airline OIDC client inside APT-designated federation zone.' },
+      // Borderline (2): federation trust (CD-04 inbound request, CD-05 outbound identity assertion)
+      { id: 'CD-04',  source: 'vnd-fed',         target: 'idp',         sourceOwner: 'VND',   targetOwner: 'APT',   transitOwner: 'VND',
+        transitAsset: 'Vendor-authored OIDC authentication request (RFC 6749)',
+        directed: true,
+        notes: 'Federation inbound leg: VND OIDC client authenticates against APT IDP. APT designates both zones (NC-2 fails). Transitions to blind-spot if airport/vendor move to independent IdPs.' },
+      { id: 'CD-05',  source: 'idp',             target: 'dmz-jump',    sourceOwner: 'APT',   targetOwner: 'APT',   transitOwner: 'VND',
+        transitAsset: 'VND-issued federated identity assertion (OpenID Connect Core 1.0 Section 2)',
+        directed: true,
+        sourceFace: 'left', targetFace: 'right',
+        notes: 'Federation outbound leg (paper §4 canonical CD-05): VND-issued identity claim traverses APT-operated IDP and DMZ. APT designates both endpoint zones so NC-2 fails; cross-AO artefact fires SC-1 via the first disjunct.' },
 
       // No-cross-AO (6): APT->APT or ALN-A->ALN-A (CD-02, CD-03, CD-07, CD-10, CD-11, CD-24)
       { id: 'CD-02',  source: 'dmz-jump',        target: 'bhs-eng-ws',  directed: true,
@@ -154,12 +161,21 @@ export const TEMPLATES = {
       { id: 'CD-24',  source: 'aln-cloud',       target: 'airline-dcs', directed: true,
         notes: 'Airline-internal cloud path (same AO at both ends).' },
 
-      // Structural blind spots (3): CD-06 latent, CD-08a active, CD-08b active
-      { id: 'CD-06',  source: 'cupps-ws',        target: 'idf-switch',  sourceOwner: 'ALN-B', targetOwner: 'APT',   directed: true,
-        notes: 'LATENT: ALN-B tenant session traversing APT-designated IDF switch. Zero safety margin if VLAN boundary degrades through misconfiguration or firmware regression.' },
-      { id: 'CD-08a', source: 'cupps-ws',        target: 'cupps-mw',    sourceOwner: 'ALN-A', targetOwner: 'VND',   directed: true,
-        notes: 'ACTIVE: 3-tenant thin-client session heartbeat from ALN-A to VND middleware.' },
-      { id: 'CD-08b', source: 'cupps-mw',        target: 'airline-dcs', sourceOwner: 'VND',   targetOwner: 'ALN-A', directed: true,
+      // Structural blind spots (3): CD-06 latent, CD-08a active, CD-08b active.
+      // Canvas uses the "active-tenant at endpoint" encoding for sourceOwner /
+      // targetOwner so NC-2 fires without per-edge zone overrides; transitOwner
+      // annotates the paper §4 first-disjunct artefact (equivalent verdicts).
+      { id: 'CD-06',  source: 'cupps-ws',        target: 'idf-switch',  sourceOwner: 'ALN-B', targetOwner: 'APT',   transitOwner: 'ALN-B',
+        transitAsset: 'ALN-B DCS session traffic transiting APT-owned infrastructure',
+        directed: true,
+        notes: 'LATENT: ALN-B DCS session traffic transits APT-owned IDF switch. Zero safety margin if the VLAN boundary degrades through misconfiguration or firmware regression.' },
+      { id: 'CD-08a', source: 'cupps-ws',        target: 'cupps-mw',    sourceOwner: 'ALN-A', targetOwner: 'VND',   transitOwner: 'ALN-A',
+        transitAsset: 'ALN-A DCS session heartbeat (IATA RP 1797 AP-owned)',
+        directed: true,
+        notes: 'ACTIVE: 3-tenant thin-client session heartbeat from ALN-A across the CUPPS boundary. Each airline is an independent AO.' },
+      { id: 'CD-08b', source: 'cupps-mw',        target: 'airline-dcs', sourceOwner: 'VND',   targetOwner: 'ALN-A', transitOwner: 'ALN-A',
+        transitAsset: 'ALN-A DCS session update crossing the PP/AP seam',
+        directed: true,
         notes: 'ACTIVE: PP/AP seam per IATA RP 1797. ALN is independent Application Provider, NOT VND\'s SP - IEC 62443-2-4 inapplicable.' },
     ],
   },
