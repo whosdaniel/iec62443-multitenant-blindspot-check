@@ -133,6 +133,16 @@
           "description": { "type": "string" },
           "from": { "$ref": "#/$defs/endpoint" },
           "to":   { "$ref": "#/$defs/endpoint" },
+          "transit_owner": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$",
+            "description": "Optional asset owner id of the artefact transiting this conduit, per the four-context artefact-ownership rule of W. Kim (2026) paper §3: (i) IATA RP 1797 Application Provider for passenger session data; (ii) IEC 62443-2-4 commissioning AO for SP-supplied code; (iii) OIDC issuer per OpenID Connect Core 1.0 §2 / RFC 6749 for federated identity assertions; (iv) originating AO for intra-tenant operational traffic. When absent, evaluator defaults transit_owner to from.owner (backward-compatible with pre-BATCH-8 YAML). The transit_owner enables the first disjunct of SC-1: a cross-AO artefact traversing a conduit whose endpoints share an asset owner still fires SC-1 (e.g., ALN session traffic transiting APT-owned CUPPS infrastructure, paper CD-06 / CD-08a / CD-05)."
+          },
+          "transit_asset": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Optional free-text label describing the transiting artefact (e.g. 'ALN DCS session heartbeat', 'VND-issued federated identity claim'). Documentation only; not evaluated."
+          },
           "notes": { "type": "string" },
           "direction": {
             "type": "string",
