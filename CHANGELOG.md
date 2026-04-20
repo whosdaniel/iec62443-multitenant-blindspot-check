@@ -5,11 +5,15 @@ All notable changes to BlindSpotCheck are documented here.
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-04-20
 
-This release adds a browser canvas interface alongside the original
-CLI. The Python evaluator stays authoritative; the browser evaluator
-is a line-for-line port verified by cross-language parity tests.
+First public release of the companion tool for W. Kim (2026),
+*"Compliant Yet Blind: Measuring and Closing Multi-Tenant Monitoring
+Gaps in IEC 62443"*. The repository at this tag reproduces paper
+Table 3 and Appendix D.1 exactly and implements the paper §4 BATCH 8
+2-disjunct SC-1 formulation and the §3 four-context artefact-ownership
+rule. Python CLI is authoritative; the browser evaluator is a
+line-for-line port verified by cross-language parity tests.
 
 ### BATCH 8 alignment with paper §4 (2-disjunct SC-1)
 - SC-1 is now a 2-disjunct predicate per W. Kim (2026) paper §4

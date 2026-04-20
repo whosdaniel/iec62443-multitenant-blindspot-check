@@ -8,8 +8,8 @@ authors:
     email: kimyngwie1@gmail.com
     orcid: "https://orcid.org/0009-0001-9503-7214"
     affiliation: "Independent Researcher"
-version: "0.1.0"
-date-released: "2026-04-17"
+version: "1.0.0"
+date-released: "2026-04-20"
 license: MIT
 repository-code: "https://github.com/whosdaniel/iec62443-multitenant-blindspot-check"
 keywords:
