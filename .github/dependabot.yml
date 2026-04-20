@@ -1,12 +1,11 @@
-# Dependabot: weekly dependency-update PRs + security-advisory alerts.
-# Scopes:
-#   - Python (pip): runtime and dev dependencies declared in pyproject.toml.
-#   - GitHub Actions (.github/workflows/*): SHA-pinned actions are still
-#     monitored so we receive update PRs for pinned hashes.
+# Dependabot: weekly dependency-update PRs for Python runtime/dev deps.
 #
-# Dependabot's auto-opened PRs run the full CI matrix (pytest, bandit,
-# pip-audit, CodeQL, dependency-review), so any update that introduces a
-# vulnerability will fail the PR before merge.
+# GitHub Actions are intentionally NOT tracked here. Workflow actions are
+# pinned by commit SHA as a supply-chain control, and we take major
+# bumps manually when there is a specific reason to (security advisory,
+# new feature we want). Repo-level Dependabot Alerts still fire on any
+# real CVE regardless of what's configured in this file, so we keep
+# coverage for actual vulnerabilities while avoiding weekly PR churn.
 
 version: 2
 updates:
@@ -20,16 +19,4 @@ updates:
       - "python"
     commit-message:
       prefix: "deps"
-      include: "scope"
-
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "github-actions"
-    commit-message:
-      prefix: "deps(ci)"
       include: "scope"
